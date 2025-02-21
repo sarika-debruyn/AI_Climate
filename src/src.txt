@@ -1,0 +1,5 @@
+Rory Eastland-Fruit rie2104
+Sarika de Bruyn sed2194
+
+The src/ directory contains the code you are writing. The data you are analyzing should
+live here too.
