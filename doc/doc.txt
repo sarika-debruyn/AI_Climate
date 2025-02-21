@@ -1,0 +1,5 @@
+Rory Eastland-Fruit rie2104
+Sarika de Bruyn sed2194
+
+The doc/ directory contains the LaTeX document that you are writing. We will provide a
+template for your final paper.
