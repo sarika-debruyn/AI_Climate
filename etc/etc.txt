@@ -1,0 +1,5 @@
+Rory Eastland-Fruit rie2104
+Sarika de Bruyn sed2194
+
+The etc/ directory contains anything else — materials, notes, photos of whiteboards, and
+so on — that you want to keep track of.
