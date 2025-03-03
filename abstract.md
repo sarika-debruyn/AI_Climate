@@ -11,7 +11,7 @@ Our method will use publicly available datasets from:
 [Electricity Maps API](https://www.electricitymaps.com/)) – Offers real-time grid carbon intensity data, allowing for optimization of workload scheduling based on grid emissions levels.
 Google DeepMind’s AI for Data Center Energy Optimization – Historical insights into data center energy consumption trends and cooling requirements.
 
-National Renewable Energy Laboratory (NREL) Wind & Solar Forecasting Data](https://www.nrel.gov/grid/solar-power-data.html) – Used to train time-series forecasting models for predicting renewable energy availability.
+[National Renewable Energy Laboratory (NREL) Wind & Solar Forecasting Data](https://www.nrel.gov/grid/solar-power-data.html) – Used to train time-series forecasting models for predicting renewable energy availability.
 
 Using time-series forecasting models, we predict short-term fluctuations in renewable energy availability. We will then integrate a reinforcement learning-based optimization model to dynamically adjust data center computing workloads in real time. This ensures that energy-intensive processes run when solar and wind energy are most available, reducing reliance on fossil-fuel-powered grids.
 
