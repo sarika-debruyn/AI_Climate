@@ -8,8 +8,9 @@ template for your final paper.
 
 ### Geographic Locations:
 We need to choose the USA cities that isolate solar and wind as dominant energy sources while also ensuring that the renewable resource in each location is plentiful, consistent, and well-documented. 
-1. Solar Energy: Yuma, Arizona, was selected as the solar-dominant site in this study due to its exceptional solar resource profile and infrastructure feasibility. According to the National Renewable Energy Laboratory (NREL), Yuma receives an average annual Global Horizontal Irradiance of over 6.5 kWh/m²/day, placing it among the highest in the continental United States [1]. The city experiences approximately 4,000 hours of sunshine per year, earning recognition by the National Climatic Data Center (NCDC) as the sunniest city in the U.S. [2]. This makes Yuma an ideal location for testing the effectiveness of machine learning-based solar forecasting models, as it offers a consistent and abundant solar resource baseline. 
-2. Wind energy: Mount Storm, West Virginia, was selected as the wind-dominant site for this study due to its strong, consistent wind resources and existing large-scale wind energy infrastructure. It is home to the Mount Storm Wind Farm, a 264 MW facility consisting of 132 turbines spread across 12 miles [3]. This makes it one of the largest wind energy installations in the eastern United States. According to the National Renewable Energy Laboratory (NREL), the region experiences average wind speeds of 7.5 to 8.5 m/s at 100 meters above ground level—well above the threshold for utility-scale wind generation [4]. Furthermore, the site is integrated into the Eastern Interconnection grid, ensuring transmission access and operational relevance. Its combination of real-world deployment, strong wind resource, and available historical weather data makes Mount Storm an ideal case study for evaluating the effectiveness of machine learning-based wind forecasting in renewable-powered data center planning.
+1. **Solar Energy:** Yuma, Arizona, was selected as the solar-dominant site in this study due to its exceptional solar resource profile and infrastructure feasibility. According to the National Renewable Energy Laboratory (NREL), Yuma receives an average annual Global Horizontal Irradiance of over 6.5 kWh/m²/day, placing it among the highest in the continental United States [1]. The city experiences approximately 4,000 hours of sunshine per year, earning recognition by the National Climatic Data Center (NCDC) as the sunniest city in the U.S. [2]. This makes Yuma an ideal location for testing the effectiveness of machine learning-based solar forecasting models, as it offers a consistent and abundant solar resource baseline.
+
+3. **Wind energy:** Mount Storm, West Virginia, was selected as the wind-dominant site for this study due to its strong, consistent wind resources and existing large-scale wind energy infrastructure. It is home to the Mount Storm Wind Farm, a 264 MW facility consisting of 132 turbines spread across 12 miles [3]. This makes it one of the largest wind energy installations in the eastern United States. According to the National Renewable Energy Laboratory (NREL), the region experiences average wind speeds of 7.5 to 8.5 m/s at 100 meters above ground level—well above the threshold for utility-scale wind generation [4]. Furthermore, the site is integrated into the Eastern Interconnection grid, ensuring transmission access and operational relevance. Its combination of real-world deployment, strong wind resource, and available historical weather data makes Mount Storm an ideal case study for evaluating the effectiveness of machine learning-based wind forecasting in renewable-powered data center planning.
 
 ### Data center characteristics:
 We are testing for forecast variability so we need to isolate for other variables.
@@ -44,7 +45,7 @@ A: rotor swept area
 v: wind speed (m/s)
 η: turbine efficiency (45%)
 
-# Economic Conversion:
+### Economic Conversion:
 - Cost of electricity from solar: $0.04–$0.045/kWh [6]
 - Cost of electricity from wind: $0.03–$0.035/kWh [6]
 - Cost of grid electricity: $0.13/kWh [7]
