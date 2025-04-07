@@ -7,7 +7,7 @@ Journal
 
 ### Goals for This Week
 - [X] Finalize abstract
-- [ ] Finish assumptions
+- [X] Finish assumptions
 - [ ] Clean and preprocess dataset
 - [ ] Set up baseline ML model
 
