@@ -2,9 +2,11 @@ Sarika de Bruyn sed2194
 
 AI-Driven Weather Forecasting for Renewable-Powered Data Centers: A Comparative Feasibility Study of Wind and Solar Regions
 
-As data centers are increasing in demand, so are their carbon emissions. Therefore, the reliance of data centers on renewable energy is essential for meeting climate targets. This paper investigates how machine learning-based weather forecasting can inform data center site selection by improving the predictability of renewable energy availability. Using historical weather data from 2024, we apply a time-series forecasting algorithm to simulate 2025 solar irradiance and wind speeds in two distinct regions—Arizona (solar-dominant) and West Virginia (wind-dominant). These forecasts are translated into expected energy output using physics-based conversion models, and then evaluated through a sensitivity analysis to assess the impact of forecast accuracy on energy supply reliability, carbon emissions from grid fallback, and return on investment.
+As data centers are increasing in demand, so are their carbon emissions. Therefore, the reliance of data centers on renewable energy is essential for meeting climate targets. This project explores how forecast accuracy and uncertainty impact the performance of solar- and wind-powered data centers equipped with battery storage. Using two case studies—solar energy in Arizona and wind energy in West Virginia—we simulate how machine learning-based forecasts influence energy planning, grid fallback, emissions, and economic outcomes.
 
-We hypothesize that machine learning-based weather forecasting can significantly improve the feasibility and carbon efficiency of renewable-powered data centers by enabling more accurate predictions of wind and solar energy availability, with varying sensitivity across different geographic regions.
+We incorporate battery storage in all scenarios to reflect realistic infrastructure and allow for temporal energy shifting. The data center operates with a time-varying demand model and uses next-day forecasts of renewable availability to plan energy use. When renewables fall short, the system draws from batteries first and falls back to the grid only if needed.
+
+We evaluate three forecasting approaches: a baseline climatology model, NGBoost (a probabilistic gradient boosting model), and TabPFN (a neural probabilistic model for tabular data). These models produce point or distributional forecasts that inform how the data center schedules energy usage and charging/discharging of storage.
 
 Our method will use publicly available datasets from:
 
