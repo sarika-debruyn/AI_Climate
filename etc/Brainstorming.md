@@ -35,19 +35,31 @@ Idealing want high ROI
 1. Compare two types of data centers:
   a. Arizona (solar)
   b. West Virginia (wind)
+
 2. Simulate operations under different forecast models:
   a. Climatology (historical average)
   b. NGBoost (probabilistic gradient boosting)
   c. TabPFN (advanced neural model with uncertainty)
+
 3. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
+
 4. Simulate with and without battery storage (e.g., 20–50 MWh capacity)
   a. Charge when renewables exceed demand
   b. Discharge when demand exceeds available power
+
 5. Track performance metrics:
   a. % of demand met by renewables
-  b. Grid fallback frequency
+  b. Grid fallback frequency and volume
   c. CO₂ emissions
-  d. Economic performance (e.g., ROI)
+  d. Economic performance (ROI)
+
+6. Battery Storage System:
+   a. Parameters: battery size (20 MWh, 50 MWh), max charge/discharge rate, efficiency (90%)
+   b. Dispatch:
+      i. charge when generation > demand
+      ii. discharge when demand > generation
+      iii. grid fallback only when battery + generation can't meet demand
+
 
 ## Expected Outcomes / Why It Matters
 1. Show how forecast accuracy and uncertainty impact energy reliability and emissions
