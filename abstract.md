@@ -1,4 +1,3 @@
-Rory Eastland-Fruit rie2104
 Sarika de Bruyn sed2194
 
 AI-Driven Weather Forecasting for Renewable-Powered Data Centers: A Comparative Feasibility Study of Wind and Solar Regions
