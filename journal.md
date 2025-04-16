@@ -1,4 +1,3 @@
-Rory Eastland-Fruit rie2104
 Sarika de Bruyn sed2194
 
 Journal
@@ -10,10 +9,6 @@ Journal
 - [X] Finish assumptions
 - [ ] Clean and preprocess dataset
 - [ ] Set up baseline ML model
-
-### Who Did What
-- Rory: 
-- Sarika: Rewrote abstraction, wrote out assumptions with sources
 
 ### Blockers / Challenges
 - Need to find more accurate cost of electricity from solar and wind as it is based on 2023
