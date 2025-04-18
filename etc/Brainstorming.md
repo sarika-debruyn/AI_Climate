@@ -41,19 +41,24 @@ Idealing want high ROI
   b. NGBoost (probabilistic gradient boosting)
   c. TabPFN (advanced neural model with uncertainty)
 
-3. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
+3. Training-Testing split:
+   a. train: 2018-2020
+   b. tune: 2021 (if needed)
+   c. test: 2022-2023 (2021 if tune is not needed)
 
-4. Simulate with and without battery storage (e.g., 20–50 MWh capacity)
+5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
+
+6. Simulate with and without battery storage (e.g., 20–50 MWh capacity)
   a. Charge when renewables exceed demand
   b. Discharge when demand exceeds available power
 
-5. Track performance metrics:
+7. Track performance metrics:
   a. % of demand met by renewables
   b. Grid fallback frequency and volume
   c. CO₂ emissions
   d. Economic performance (ROI)
 
-6. Battery Storage System:
+8. Battery Storage System:
    a. Parameters: battery size (20 MWh, 50 MWh), max charge/discharge rate, efficiency (90%)
    b. Dispatch:
       i. charge when generation > demand
