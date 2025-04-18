@@ -66,3 +66,6 @@ Idealing want high ROI
 2. Quantify how much battery storage reduces reliance on the grid, especially when forecasts are poor
 3. Compare solar vs. wind in terms of reliability, predictability, and storage needs
 
+## Climatology Method:
+- Global Horizontal Irridiance (GHI) is a good proxy for solar power availability --> the higher the GHI, the more solar energy available
+- Use 
