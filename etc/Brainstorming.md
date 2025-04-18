@@ -32,7 +32,7 @@ Idealing want high ROI
 4. How does battery storage help reduce the impacts of forecast uncertainty?
 
 ## Approach:
-1. Compare two types of data centers:
+1. Compare two types of data centers as test beds:
   a. Arizona (solar)
   b. West Virginia (wind)
 
