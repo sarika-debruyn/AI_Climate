@@ -1,9 +1,9 @@
 import pandas as pd
-from src.data_loader import load_solar_data
-from src.solar_power_calc import add_power_output
-from src.climatology_model import train_climatology_model, apply_climatology_model
-from src.evaluate_model import evaluate_forecast
-from src.visualize import plot_forecast, plot_heatmap
+from data_loader import load_solar_data
+from solar_power_calc import add_power_output
+from climatology_model import train_climatology_model, apply_climatology_model
+from evaluate_model import evaluate_forecast
+from visualize import plot_forecast, plot_heatmap
 from pandas.api.types import CategoricalDtype
 
 # Load and prep data
