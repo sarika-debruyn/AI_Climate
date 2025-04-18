@@ -37,7 +37,7 @@ Idealing want high ROI
   b. West Virginia (wind)
 
 2. Simulate operations under different forecast models:
-  a. Climatology (historical average)
+  a. Climatology (historical average) --> baseline model
   b. NGBoost (probabilistic gradient boosting)
   c. TabPFN (advanced neural model with uncertainty)
 
