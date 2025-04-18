@@ -2,17 +2,14 @@ Sarika de Bruyn sed2194
 
 Journal
 
-## Week of March 30th
-
-### Goals for This Week
-- [X] Finalize abstract
-- [X] Finish assumptions
-- [ ] Clean and preprocess dataset
-- [ ] Set up baseline ML model
+### Goals
+- April 18th: Finish Climatology model for solar and wind
 
 ### Blockers / Challenges
 
-### Next Steps
+### Things to do:
+- find values for time-varying model
+- add assumptions for battery system
 
 ### Notes/Questions
 Ask professor: 
