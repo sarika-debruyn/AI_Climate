@@ -14,14 +14,23 @@ We need to choose the USA cities that isolate solar and wind as dominant energy 
 
 ### Data center characteristics:
 We are testing for forecast variability so we need to isolate for other variables.
-1. The data center has a constant power demand of 10 MW 
+1. The data center has a dynamic demand. We use the following time-varying model:
+   D(t) = (C + Vc X h(t) x d(t) x s(t)) x ϵ(t)
+   D(t): demand at time t (MW)
+   C: constant base load (MW)
+   Vc: Max variable load (MW)
+   h(t): Hourly profile (0-1)
+   d(t): day of week adjustment
+   s(t): seasonal adjustment
+   ϵ(t): random noise
+   
 2. Operates 24/7, 365 days a year, with no demand-side flexibility
 3. All electricity is intended to be supplied by on-site renewable infrastructure 
 4. When renewable output is insufficient, the center draws from the local power grid.
 5. There is no energy storage or batteries in the base model 
 
 ### Renewable Energy Infrastructure:
-We need a baseline conversion from weather to power in order to assess how ML forecast quality affects power output, ensuring consistency across geographies. The data centers have a fixed number of wind turbines or solar panels sized to match peak production to 10 MW demand under optimal conditions.
+We need a baseline conversion from weather to power in order to assess how ML forecast quality affects power output, ensuring consistency across geographies. The data centers have a fixed number of wind turbines or solar panels sized to match peak production under optimal conditions.
 1. For solar energy (Arizona):
 - We assume a solar panel efficiency of 20% and a performance ratio of 0.8, values consistent with well-designed PV systems in high-irradiance regions such as Arizona [5]
 - Orientation and tilt optimized for local latitude
