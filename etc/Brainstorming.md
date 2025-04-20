@@ -41,10 +41,9 @@ Idealing want high ROI
   b. NGBoost (probabilistic gradient boosting)
   c. TabPFN (advanced neural model with uncertainty)
 
-3. Training-Testing split:
-   a. train: 2018-2020
-   b. tune: 2021 (if needed)
-   c. test: 2022-2023 (2021 if tune is not needed)
+3. Training and testing
+  a. Use 2018-2021 train and 2022-2023 test for baseline model
+  b. Use TimeSeriesSplit for training and testing ML Models--> simulates how the model would perform in rolling time windows
 
 5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
