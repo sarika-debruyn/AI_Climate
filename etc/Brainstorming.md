@@ -1,15 +1,15 @@
 
 ### Brainstorming: Forecasting Uncertainty and Battery Storage in Solar- and Wind- Powered Data Centers
 
-## Background Understanding of Data Centers and Grids:
-# Why is grid-fall back expensive?
+# Background Understanding of Data Centers and Grids:
+## Why is grid-fall back expensive?
 1. Grid electricity is more expensive, especially in regions where renewable Power Purchase Agreements (PPAs) offer fixed low rates.
 a. *Question to explore*: Does Arizona or West Virginia have PPAs?
 2. Grid rates can fluctuate based on demand and time-of-day (especially during peak hours)
 3. If you use both renewable energy infrastructure and the grid, then you are paying for both unused renewable energy capacity and grid electrictiy
 4. Utilities charge extra feeds based on peak grid usage --> "demand charges"
 
-# How does ROI relate to data centers?
+## How does ROI relate to data centers?
 ROI = (net benefit - investment costs) / Investment costs
 Forecast error --> grid fallback --> higher operating costs --> lower net benefit --> lower ROI 
 Idealing want high ROI
@@ -20,6 +20,7 @@ Idealing want high ROI
    b. savings shrink, taking longer to break even
    c. ROI drops
 
+# Methodology
 ## Problem:
 1. Data centers are increasingly becoming necessary but are large emittors of CO2
 2. Solar and wind are possible sources of energy but are intermittent and depend heavily on accurate forecasts
@@ -41,10 +42,9 @@ Idealing want high ROI
   b. NGBoost (probabilistic gradient boosting)
   c. TabPFN (advanced neural model with uncertainty)
 
-3. Training-Testing split:
-   a. train: 2018-2020
-   b. tune: 2021 (if needed)
-   c. test: 2022-2023 (2021 if tune is not needed)
+3. Training and testing
+  a. Use 2018-2021 train and 2022-2023 test for baseline model
+  b. Use TimeSeriesSplit for training and testing ML Models--> simulates how the model would perform in rolling time windows
 
 5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
