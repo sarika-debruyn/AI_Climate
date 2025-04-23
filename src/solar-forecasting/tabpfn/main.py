@@ -1,26 +1,22 @@
+# === TabPFN Solar Forecast with Timestamp Output (Fixed Index Issue + Results Directory Creation) ===
 import pandas as pd
 import numpy as np
 import torch
+import os
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from tabpfn import TabPFNRegressor
 
-
 # === Step 1: Estimate Solar Power ===
 def compute_solar_power(df, panel_area=1.6, efficiency=0.20):
-    """
-    Estimate solar power (in kW) from GHI.
-    """
-    df['solar_power'] = (df['GHI'] * panel_area * efficiency) / 1000  # convert W to kW
+    df['solar_power'] = (df['GHI'] * panel_area * efficiency) / 1000  # kW
     return df
 
-
 # === Step 2: Load and Prepare Solar Data ===
-def load_solar_data(base_dir=".", years=range(2018, 2024)):
+def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
-    
     dfs = []
     for path in file_paths:
         if not path.exists():
@@ -33,16 +29,13 @@ def load_solar_data(base_dir=".", years=range(2018, 2024)):
         raise ValueError("No solar CSVs were loaded. Check paths or uploads.")
 
     df = pd.concat(dfs, ignore_index=True)
-
-    # Basic cleanup
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
-    for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Cloud Type']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Pressure', 'Ozone', 'Dew Point']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     df.dropna(subset=['GHI'], inplace=True)
 
     df = compute_solar_power(df)
-
-    # Feature engineering
     df['cos_hour'] = np.cos(2 * np.pi * df['Hour'] / 24)
     df['sin_hour'] = np.sin(2 * np.pi * df['Hour'] / 24)
     df['dayofyear'] = df['datetime'].dt.dayofyear
@@ -54,20 +47,22 @@ def load_solar_data(base_dir=".", years=range(2018, 2024)):
     ]
     feature_cols = [col for col in feature_cols if col in df.columns]
 
-    X = df[feature_cols].dropna()
-    y = df.loc[X.index, 'solar_power']
+    df = df.dropna(subset=feature_cols)
+    X = df[feature_cols]
+    y = df['solar_power']
+    timestamps = df['datetime']
+    return X, y, timestamps
 
-    return X, y
-
-
-# === Step 3: Preprocess (Standardize & Split) ===
-def preprocess(X, y):
+# === Step 3: Preprocess ===
+def preprocess(X, y, timestamps):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    return train_test_split(X_scaled, y, test_size=0.2, random_state=42), scaler
+    X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
+        X_scaled, y, timestamps, test_size=0.2, random_state=42
+    )
+    return (X_train, X_test, y_train, y_test, t_train, t_test), scaler
 
-
-# === Step 4: Train and Evaluate TabPFN ===
+# === Step 4: Train and Evaluate ===
 def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Training on device: {device}")
@@ -77,7 +72,6 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
     y_pred = model.predict(X_test)
 
-    # Evaluation
     mae = mean_absolute_error(y_test, y_pred)
     rmse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
@@ -87,25 +81,27 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     print(f"RMSE: {rmse:.4f}")
     print(f"R²:   {r2:.4f}")
 
-    # Print a preview of predictions
-    df_results = pd.DataFrame({
-        'y_true': y_test[:10].values,
-        'y_pred': y_pred[:10]
-    })
-    print("\n=== Sample Predictions ===")
-    print(df_results)
-
-    return model
-
+    return y_pred
 
 # === Step 5: Main Script ===
 if __name__ == "__main__":
-    X, y = load_solar_data(base_dir="solar_data", years=range(2018, 2024))
-    # Sample if above TabPFN size limit
+    X, y, timestamps = load_solar_data()
+
     max_samples = 10_000
     if len(X) > max_samples:
         sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
         X = X.iloc[sampled_indices]
         y = y.iloc[sampled_indices]
-    (X_train, X_test, y_train, y_test), scaler = preprocess(X, y)
-    model = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
+        timestamps = timestamps.iloc[sampled_indices]
+
+    (X_train, X_test, y_train, y_test, t_train, t_test), scaler = preprocess(X, y, timestamps)
+    y_pred = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
+
+    forecast_df = pd.DataFrame({
+        'datetime': t_test.values,
+        'solar_power_mw': y_pred / 1000
+    }).sort_values(by='datetime')
+
+    os.makedirs("../../results", exist_ok=True)
+    forecast_df.to_csv("../../results/solar_tabpfn_forecast.csv", index=False)
+    print("Saved TabPFN forecast to ../../results/solar_tabpfn_forecast.csv")
