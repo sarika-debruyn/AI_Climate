@@ -18,7 +18,7 @@ def compute_solar_power(df, panel_area=1.6, efficiency=0.20):
 
 
 # === Step 2: Load and Prepare Solar Data ===
-def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/AI_Climate/src/solar-forecasting/solar_data/", years=range(2018, 2024)):
+def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/src/solar-forecasting/solar_data/", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
     
     # Load all CSVs (skipping first 2 rows if needed)
@@ -101,10 +101,10 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
     X, y = load_solar_data()
     # Sample if above TabPFN size limit
-    max_samples = 10_000
-    if len(X) > max_samples:
-        sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
-        X = X.iloc[sampled_indices]
-        y = y.iloc[sampled_indices]
+    #max_samples = 10_000
+    #if len(X) > max_samples:
+        #sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
+        #X = X.iloc[sampled_indices]
+        #y = y.iloc[sampled_indices]
     (X_train, X_test, y_train, y_test), scaler = preprocess(X, y)
     model = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
