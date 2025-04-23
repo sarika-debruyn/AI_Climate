@@ -11,6 +11,10 @@ import pvlib
 LATITUDE = 32.7
 LONGITUDE = -114.63
 TIMEZONE = 'Etc/GMT+7'
+PANEL_AREA = 1.6  # m²
+EFFICIENCY_BASE = 0.20
+TEMP_COEFF = 0.004  # 0.4% loss per °C above 25°C
+T_REF = 25  # reference temperature
 
 # === Step 1: Load solar data ===
 def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
@@ -33,9 +37,14 @@ def add_zenith_angle(df, latitude=LATITUDE, longitude=LONGITUDE, timezone=TIMEZO
     df['zenith'] = solar_position['zenith'].values
     return df
 
-# === Step 3: Convert GHI to power output ===
-def ghi_to_power(ghi, area=1.6, efficiency=0.2):
-    return ghi * area * efficiency / 1000  # kW
+# === Step 3a: Calculate temperature-derated efficiency ===
+def temp_derated_efficiency(temp, base_eff=EFFICIENCY_BASE, gamma=TEMP_COEFF, T_ref=T_REF):
+    return base_eff * (1 - gamma * (temp - T_ref))
+
+# === Step 3b: Convert GHI to power output with optional temperature adjustment ===
+def ghi_to_power(ghi, temp, area=PANEL_AREA):
+    eff = temp_derated_efficiency(temp)
+    return ghi * area * eff / 1000  # returns power in kW
 
 # === Step 4: Feature engineering ===
 def prepare_features(df):
@@ -48,7 +57,7 @@ def prepare_features(df):
 
     features = df[['sin_hour', 'cos_hour', 'dayofyear', 'zenith_norm',
                    'DHI', 'DNI', 'Temperature', 'Relative Humidity', 'Wind Speed', 'is_clear']]
-    target = ghi_to_power(df['GHI'])
+    target = ghi_to_power(df['GHI'], df['Temperature'])
     return features, target
 
 # === Step 5: Train and evaluate model ===
