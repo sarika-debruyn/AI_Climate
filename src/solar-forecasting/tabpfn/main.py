@@ -79,13 +79,21 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
     # Evaluation
     mae = mean_absolute_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    rmse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
     print("\n=== Evaluation Metrics ===")
     print(f"MAE:  {mae:.4f}")
     print(f"RMSE: {rmse:.4f}")
     print(f"R²:   {r2:.4f}")
+
+    # Print a preview of predictions
+    df_results = pd.DataFrame({
+        'y_true': y_test[:10].values,
+        'y_pred': y_pred[:10]
+    })
+    print("\n=== Sample Predictions ===")
+    print(df_results)
 
     return model
 
