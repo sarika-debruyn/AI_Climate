@@ -1,6 +1,8 @@
+# === TabPFN Wind Forecast with Timestamp Output (Fixed Index Issue + Results Directory Creation) ===
 import pandas as pd
 import numpy as np
 import torch
+import os
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -100,5 +102,6 @@ if __name__ == "__main__":
         'wind_power_mw': y_pred / 1000
     }).sort_values(by='datetime')
 
+    os.makedirs("../../results", exist_ok=True)
     forecast_df.to_csv("../../results/wind_tabpfn_forecast.csv", index=False)
     print("Saved TabPFN forecast to ../../results/wind_tabpfn_forecast.csv")
