@@ -79,7 +79,7 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
     # Evaluation
     mae = mean_absolute_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    rmse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
     print("\n=== Evaluation Metrics ===")
