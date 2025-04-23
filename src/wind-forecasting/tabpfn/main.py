@@ -1,4 +1,3 @@
-# === TabPFN Wind Forecast with Timestamp Output ===
 import pandas as pd
 import numpy as np
 import torch
@@ -52,11 +51,14 @@ def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
     timestamps = df['datetime']
     return X, y, timestamps
 
-# === Step 3: Preprocess ===
-def preprocess(X, y):
+# === Step 3: Preprocess (with aligned timestamps) ===
+def preprocess(X, y, timestamps):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    return train_test_split(X_scaled, y, test_size=0.2, random_state=42), scaler
+    X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
+        X_scaled, y, timestamps, test_size=0.2, random_state=42
+    )
+    return (X_train, X_test, y_train, y_test, t_train, t_test), scaler
 
 # === Step 4: Train and Evaluate ===
 def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
@@ -90,13 +92,13 @@ if __name__ == "__main__":
         y = y.iloc[sampled_indices]
         timestamps = timestamps.iloc[sampled_indices]
 
-    (X_train, X_test, y_train, y_test), scaler = preprocess(X, y)
+    (X_train, X_test, y_train, y_test, t_train, t_test), scaler = preprocess(X, y, timestamps)
     y_pred = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
 
     forecast_df = pd.DataFrame({
-        'datetime': timestamps.iloc[y_test.index].values,
+        'datetime': t_test.values,
         'wind_power_mw': y_pred / 1000
     }).sort_values(by='datetime')
 
     forecast_df.to_csv("../../results/wind_tabpfn_forecast.csv", index=False)
-    print("Saved TabPFN forecast to results/wind_tabpfn_forecast.csv")
+    print("Saved TabPFN forecast to ../../results/wind_tabpfn_forecast.csv")
