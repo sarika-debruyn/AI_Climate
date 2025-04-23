@@ -87,14 +87,12 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
 # === Main ===
 if __name__ == "__main__":
-    print("Loading wind data...")
-    df = load_wind_data()
-
-    print("Preparing features...")
-    X, y = prepare_features(df)
-
-    print("Preprocessing...")
+    X, y = load_wind_data(base_dir="wind_data", years=range(2018, 2024))
+    # Sample if above TabPFN size limit
+    max_samples = 10_000
+    if len(X) > max_samples:
+        sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
+        X = X.iloc[sampled_indices]
+        y = y.iloc[sampled_indices]
     (X_train, X_test, y_train, y_test), scaler = preprocess(X, y)
-
-    print("Training TabPFN...")
     model = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
