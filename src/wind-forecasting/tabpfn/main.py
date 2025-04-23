@@ -10,6 +10,7 @@ from tabpfn import TabPFNRegressor
 # === Constants ===
 AIR_DENSITY = 1.121  # kg/m³
 ROTOR_AREA = 1.6     # m²
+MAX_SAMPLES = 10_000
 
 # === Step 1: Load wind data ===
 def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
@@ -67,32 +68,4 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     print(f"Training on device: {device}")
 
     model = TabPFNRegressor(device=device)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-
-    mae = mean_absolute_error(y_test, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    r2 = r2_score(y_test, y_pred)
-
-    print("\n=== Evaluation Metrics ===")
-    print(f"MAE:  {mae:.4f}")
-    print(f"RMSE: {rmse:.4f}")
-    print(f"R²:   {r2:.4f}")
-
-    # Print sample predictions
-    print("\n=== Sample Predictions ===")
-    print(pd.DataFrame({'y_true': y_test[:10].values, 'y_pred': y_pred[:10]}))
-
-    return model
-
-# === Main ===
-if __name__ == "__main__":
-    X, y = load_wind_data(base_dir="wind_data", years=range(2018, 2024))
-    # Sample if above TabPFN size limit
-    max_samples = 10_000
-    if len(X) > max_samples:
-        sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
-        X = X.iloc[sampled_indices]
-        y = y.iloc[sampled_indices]
-    (X_train, X_test, y_train, y_test), scaler = preprocess(X, y)
-    model = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
+    model.fit(X_train, y_train, ignore_pretraining_limits=True
