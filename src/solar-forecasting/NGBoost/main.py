@@ -108,7 +108,7 @@ def main():
     forecast_df = evaluate_model(X, y, timestamps)
 
     print("Saving forecast results...")
-    forecast_df.to_csv("results/solar_ngboost_forecast.csv", index=False)
+    forecast_df.to_csv("../../results/solar_ngboost_forecast.csv", index=False)
 
 if __name__ == "__main__":
     main()
