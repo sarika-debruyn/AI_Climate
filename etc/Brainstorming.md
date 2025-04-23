@@ -49,7 +49,7 @@ Idealing want high ROI
 
 5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
-6. Simulate with and without battery storage (e.g., 20–50 MWh capacity)
+6. Simulate with battery storage (e.g., 20–50 MWh capacity)
   a. Charge when renewables exceed demand
   b. Discharge when demand exceeds available power
 
