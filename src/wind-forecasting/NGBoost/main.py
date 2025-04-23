@@ -12,7 +12,7 @@ AIR_DENSITY = 1.121  # kg/m³
 ROTOR_AREA = 1.6     # m²
 
 # === Step 1: Load wind data ===
-def load_wind_data(base_dir="../wind-forecasting/wind_data", years=range(2018, 2024)):
+def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in years]
     df = pd.concat([pd.read_csv(path, skiprows=2) for path in file_paths], ignore_index=True)
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
@@ -86,7 +86,7 @@ def main():
     forecast_df = evaluate_model(X, y, timestamps)
 
     print("Saving forecast results...")
-    forecast_df.to_csv("results/wind_ngboost_forecast.csv", index=False)
+    forecast_df.to_csv("../../results/wind_ngboost_forecast.csv", index=False)
 
 if __name__ == "__main__":
     main()
