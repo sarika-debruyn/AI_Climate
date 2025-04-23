@@ -87,6 +87,14 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     print(f"RMSE: {rmse:.4f}")
     print(f"R²:   {r2:.4f}")
 
+    # Print a preview of predictions
+    df_results = pd.DataFrame({
+        'y_true': y_test[:10].values,
+        'y_pred': y_pred[:10]
+    })
+    print("\n=== Sample Predictions ===")
+    print(df_results)
+
     return model
 
 
