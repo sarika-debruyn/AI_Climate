@@ -1,8 +1,8 @@
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 from pathlib import Path
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from pandas.api.types import CategoricalDtype
@@ -106,6 +106,11 @@ def main():
     mae, rmse = evaluate_forecast(df_forecast)
     print(f"\n📊 Climatology MAE (2021–2023): {mae:.2f} W/m²")
     print(f"📊 Climatology RMSE (2021–2023): {rmse:.2f} W/m²\n")
+
+    # Save forecast
+    os.makedirs("../../results", exist_ok=True)
+    df_forecast[['timestamp', 'GHI_climatology']].to_csv("../../results/solar_baseline_forecast.csv", index=False)
+    print("Saved baseline solar forecast to ../../results/solar_baseline_forecast.csv")
 
     plot_forecast(df_forecast)
     plot_heatmap(df_forecast, year=2022)

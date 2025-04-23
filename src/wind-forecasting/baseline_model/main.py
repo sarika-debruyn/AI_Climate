@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 from pathlib import Path
 from pandas.api.types import CategoricalDtype
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -45,8 +46,8 @@ def create_climatology_model(df):
 def evaluate_model(df_forecast):
     mae = mean_absolute_error(df_forecast['Wind Power (W)'], df_forecast['WindPower_climatology'])
     rmse = np.sqrt(mean_squared_error(df_forecast['Wind Power (W)'], df_forecast['WindPower_climatology']))
-    print(f"Climatology MAE (2021–2023): {mae:.2f} W")
-    print(f"Climatology RMSE (2021–2023): {rmse:.2f} W")
+    print(f"\n📊 Climatology MAE (2021–2023): {mae:.2f} W")
+    print(f"📊 Climatology RMSE (2021–2023): {rmse:.2f} W\n")
     return mae, rmse
 
 # === Visualization ===
@@ -79,5 +80,11 @@ if __name__ == "__main__":
     df = estimate_wind_power(df)
     df_forecast, df_test = create_climatology_model(df)
     evaluate_model(df_forecast)
+
+    # Save forecast output
+    os.makedirs("../../results", exist_ok=True)
+    df_forecast[['timestamp', 'WindPower_climatology']].to_csv("../../results/wind_baseline_forecast.csv", index=False)
+    print("Saved baseline wind forecast to ../../results/wind_baseline_forecast.csv")
+
     plot_forecast(df_forecast)
     plot_heatmap(df_forecast)
