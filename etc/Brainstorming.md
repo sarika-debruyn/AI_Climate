@@ -44,7 +44,8 @@ Idealing want high ROI
 
 3. Training and testing
   a. Use 2018-2021 train and 2022-2023 test for baseline model
-  b. Use TimeSeriesSplit for training and testing ML Models--> simulates how the model would perform in rolling time windows
+  b. Use TimeSeriesSplit for NGBoost--> simulates how the model would perform in rolling time windows
+  c. TabPFN is pretrained with neural networks via meta-learning so it doesn't need hyperparameter tuning
 
 5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
