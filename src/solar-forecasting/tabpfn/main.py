@@ -100,7 +100,7 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
 # === Step 5: Main Script ===
 if __name__ == "__main__":
-    X, y = load_solar_data(base_dir=".", years=range(2018, 2024))
+    X, y = load_solar_data(base_dir="solar_data", years=range(2018, 2024))
     # Sample if above TabPFN size limit
     max_samples = 10_000
     if len(X) > max_samples:
