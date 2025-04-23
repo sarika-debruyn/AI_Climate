@@ -18,30 +18,28 @@ def compute_solar_power(df, panel_area=1.6, efficiency=0.20):
 
 
 # === Step 2: Load and Prepare Solar Data ===
-def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/src/solar-forecasting/solar_data/", years=range(2018, 2024)):
+def load_solar_data(base_dir=".", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
     
-    # Load all CSVs (skipping first 2 rows if needed)
     dfs = []
     for path in file_paths:
         if not path.exists():
             print(f"Warning: Missing file {path}")
             continue
+        print(f"Loading {path}")
         dfs.append(pd.read_csv(path, skiprows=2))
+
+    if not dfs:
+        raise ValueError("No solar CSVs were loaded. Check paths or uploads.")
 
     df = pd.concat(dfs, ignore_index=True)
 
-    # Create datetime
+    # Basic cleanup
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
-
-    # Clean numeric values
     for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Cloud Type']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    # Drop missing GHI rows (required for power calc)
     df.dropna(subset=['GHI'], inplace=True)
 
-    # Compute solar power from GHI
     df = compute_solar_power(df)
 
     # Feature engineering
@@ -49,7 +47,6 @@ def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/src/solar-forecast
     df['sin_hour'] = np.sin(2 * np.pi * df['Hour'] / 24)
     df['dayofyear'] = df['datetime'].dt.dayofyear
 
-    # Feature selection
     feature_cols = [
         'GHI', 'Temperature', 'DHI', 'DNI',
         'Wind Speed', 'Relative Humidity', 'Pressure',
@@ -57,12 +54,8 @@ def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/src/solar-forecast
     ]
     feature_cols = [col for col in feature_cols if col in df.columns]
 
-    X = df[feature_cols]
-    y = df['solar_power']
-
-    # Drop any remaining NaNs
-    X = X.dropna()
-    y = y.loc[X.index]
+    X = df[feature_cols].dropna()
+    y = df.loc[X.index, 'solar_power']
 
     return X, y
 
@@ -99,7 +92,7 @@ def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
 
 # === Step 5: Main Script ===
 if __name__ == "__main__":
-    X, y = load_solar_data()
+    X, y = load_solar_data(base_dir=".", years=range(2018, 2024))
     # Sample if above TabPFN size limit
     #max_samples = 10_000
     #if len(X) > max_samples:
