@@ -7,17 +7,18 @@ from pathlib import Path
 from pandas.api.types import CategoricalDtype
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-# === Config ===
-AIR_DENSITY = 1.121  # kg/m^3 for Mount Storm, WV
-turbine_radius = 40  # meters
-SWEEP_AREA = np.pi * turbine_radius**2
-RESULTS_DIR = Path("../../model_results")
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+# === Constants ===
+AIR_DENSITY = 1.121  # kg/m³
+TURBINE_RADIUS = 40  # meters
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2
 
-# === Load Data ===
-def load_wind_data(base_dir="../wind_data"):
-    all_years = [2018, 2019, 2020, 2021, 2022, 2023]
-    file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in all_years]
+# === Generate 2024 Forecast Timestamps ===
+def generate_forecast_timestamps(start="2024-01-01", end="2024-12-31 23:00"):
+    return pd.date_range(start=start, end=end, freq="H")
+
+# === Load Historical Wind Data ===
+def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
+    file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in years]
     df = pd.concat([pd.read_csv(path, skiprows=2) for path in file_paths], ignore_index=True)
     df['timestamp'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
     df.set_index('timestamp', inplace=True)
@@ -25,68 +26,45 @@ def load_wind_data(base_dir="../wind_data"):
     df.dropna(subset=['Wind Speed'], inplace=True)
     return df
 
-# === Estimate Wind Power ===
+# === Estimate Wind Power (W) ===
 def estimate_wind_power(df):
     coeff = 0.5 * AIR_DENSITY * SWEEP_AREA
-    df['Wind Power (W)'] = coeff * (df['Wind Speed'] ** 3)
+    df['wind_power_w'] = coeff * (df['Wind Speed'] ** 3)
     return df
 
-# === Create Climatology Model ===
-def create_climatology_model(df):
-    df['year'] = df.index.year
-    df['month'] = df.index.month.astype(CategoricalDtype(categories=list(range(1, 13)), ordered=True))
-    df['hour'] = df.index.hour.astype(CategoricalDtype(categories=list(range(0, 24)), ordered=True))
-    df_train = df[df['year'] <= 2020].copy()
-    df_test = df[df['year'] >= 2021].copy()
-    climatology = df_train.groupby(['month', 'hour'])['Wind Power (W)'].mean().reset_index()
-    climatology.rename(columns={'Wind Power (W)': 'WindPower_climatology'}, inplace=True)
-    df_test_reset = df_test.reset_index()
-    df_forecast = pd.merge(df_test_reset, climatology, on=['month', 'hour'], how='left')
-    return df_forecast, df_test, climatology
+# === Climatology Model ===
+def train_climatology_model(df):
+    df['month'] = df.index.month
+    df['hour'] = df.index.hour
+    return df.groupby(['month', 'hour'])['wind_power_w'].mean().reset_index().rename(columns={'wind_power_w': 'wind_climatology_w'})
 
-# === Evaluate Model ===
-def evaluate_model(df_forecast):
-    mae = mean_absolute_error(df_forecast['Wind Power (W)'], df_forecast['WindPower_climatology'])
-    rmse = np.sqrt(mean_squared_error(df_forecast['Wind Power (W)'], df_forecast['WindPower_climatology']))
-    print(f"\n📊 Climatology MAE (2021–2023): {mae:.2f} W")
-    print(f"📊 Climatology RMSE (2021–2023): {rmse:.2f} W\n")
-    return mae, rmse
+# === Forecast for 2024 using climatology ===
+def generate_baseline_forecast(climatology_df):
+    forecast_timestamps = generate_forecast_timestamps()
+    df = pd.DataFrame({'datetime': forecast_timestamps})
+    df['month'] = df['datetime'].dt.month
+    df['hour'] = df['datetime'].dt.hour
+    df = df.merge(climatology_df, on=['month', 'hour'], how='left')
+    df['wind_power_mw'] = df['wind_climatology_w'] / 1e6
+    return df[['datetime', 'wind_power_mw']].dropna()
 
-# === Visualization ===
-def plot_forecast(df_forecast):
-    plt.figure(figsize=(15, 4))
-    plt.plot(df_forecast['timestamp'][-500:], df_forecast['Wind Power (W)'][-500:], label='Actual Wind Power')
-    plt.plot(df_forecast['timestamp'][-500:], df_forecast['WindPower_climatology'][-500:], label='Climatology Forecast', linestyle='--')
-    plt.title('Climatology Forecast vs Actual (Last 500 Hours of Test Set)')
-    plt.xlabel('Time')
-    plt.ylabel('Estimated Wind Power (W)')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+# === Main Pipeline ===
+def main():
+    print("Loading historical wind data...")
+    df_hist = load_wind_data()
+    df_hist = estimate_wind_power(df_hist)
 
-def plot_heatmap(df_forecast):
-    df_heat = df_forecast[df_forecast['timestamp'].dt.year == 2022].copy()
-    df_heat['abs_error'] = abs(df_heat['Wind Power (W)'] - df_heat['WindPower_climatology'])
-    heatmap_data = df_heat.groupby(['month', 'hour'])['abs_error'].mean().unstack()
-    plt.figure(figsize=(12, 6))
-    sns.heatmap(heatmap_data, cmap="YlOrRd", linewidths=0.5, linecolor='gray')
-    plt.title("Climatology Forecast MAE by Month & Hour (2022 Only)")
-    plt.xlabel("Hour of Day")
-    plt.ylabel("Month")
-    plt.tight_layout()
-    plt.show()
+    print("Training climatology model...")
+    climatology_df = train_climatology_model(df_hist)
 
-# === Run Baseline ===
+    print("Generating 2024 baseline forecast...")
+    forecast_df = generate_baseline_forecast(climatology_df)
+
+    print("Saving forecast to model_results...")
+    os.makedirs("../../model_results", exist_ok=True)
+    climatology_df.to_csv("../../model_results/wind_climatology.csv", index=False)
+    forecast_df.to_csv("../../model_results/wind_baseline_eval_forecast.csv", index=False)
+    print("✅ Saved climatology and baseline forecast for wind.")
+
 if __name__ == "__main__":
-    df = load_wind_data()
-    df = estimate_wind_power(df)
-    df_forecast, df_test, climatology = create_climatology_model(df)
-    evaluate_model(df_forecast)
-
-    # Save outputs
-    df_forecast[['timestamp', 'WindPower_climatology']].to_csv(RESULTS_DIR / "wind_baseline_eval_forecast.csv", index=False)
-    climatology.to_csv(RESULTS_DIR / "wind_climatology.csv", index=False)
-    print("✅ Saved wind baseline outputs to model_results/")
-
-    plot_forecast(df_forecast)
-    plot_heatmap(df_forecast)
+    main()

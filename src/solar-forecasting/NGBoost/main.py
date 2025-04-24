@@ -80,7 +80,7 @@ def evaluate_model(X, y, timestamps, n_splits=5):
         rmses.append(rmse)
 
         preds = pd.DataFrame({
-            'datetime': timestamps.iloc[val_idx].values,
+            'datetime': timestamps.values[val_idx],
             'solar_power_mw': y_pred / 1000
         })
         all_predictions.append(preds)
@@ -102,7 +102,7 @@ def main():
 
     print("Preparing features...")
     X, y = prepare_features(df)
-    timestamps = df.index.to_series()
+    timestamps = df.reset_index()['datetime']  # ensure proper alignment
 
     print("Evaluating model performance and generating forecasts...")
     forecast_df = evaluate_model(X, y, timestamps)
