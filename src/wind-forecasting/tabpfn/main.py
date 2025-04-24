@@ -10,8 +10,11 @@ import os
 import warnings
 
 # === Constants ===
-AIR_DENSITY = 1.121
-ROTOR_AREA = 1.6
+AIR_DENSITY = 1.121  # kg/m³
+TURBINE_RADIUS = 50  # meters (100m diameter)
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # ~7,850 m²
+EFFICIENCY = 0.40
+TURBINE_COUNT = 16  # 2.5 MW each x 16 turbines = 40 MW
 FORECAST_START = "2024-01-01"
 FORECAST_END = "2024-12-31 23:00"
 MAX_TABPFN_SAMPLES = 10000
@@ -26,7 +29,7 @@ def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
             continue
         print(f"Loaded: {path}")
         dfs.append(pd.read_csv(path, skiprows=2))
-    
+
     if not dfs:
         raise ValueError("No wind CSVs were loaded. Check paths or uploads.")
     df = pd.concat(dfs, ignore_index=True)
@@ -36,9 +39,10 @@ def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
     df.dropna(subset=['Wind Speed'], inplace=True)
     return df.set_index('datetime').sort_index()
 
-# === Wind Power Estimation ===
-def wind_speed_to_power(wind_speed, rho=AIR_DENSITY, area=ROTOR_AREA):
-    return 0.5 * rho * area * (wind_speed ** 3) / 1000
+# === Wind Power Estimation (kW) ===
+def wind_speed_to_power(wind_speed):
+    coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
+    return coeff * (wind_speed ** 3) / 1000
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -102,7 +106,7 @@ def main():
 
     forecast_df = pd.DataFrame({
         'datetime': X_forecast.index,
-        'wind_power_mw': y_pred / 1000
+        'wind_power_mw': y_pred / 1000  # convert kW to MW
     })
 
     print("Saving forecast results...")

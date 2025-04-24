@@ -9,8 +9,10 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 # === Constants ===
 AIR_DENSITY = 1.121  # kg/m³
-TURBINE_RADIUS = 40  # meters
-SWEEP_AREA = np.pi * TURBINE_RADIUS**2
+TURBINE_RADIUS = 50  # meters (for 100m diameter turbine)
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # ~7,850 m²
+TURBINE_COUNT = 16  # for 40 MW wind farm assuming 2.5 MW per turbine
+EFFICIENCY = 0.40  # turbine efficiency
 
 # === Generate 2024 Forecast Timestamps ===
 def generate_forecast_timestamps(start="2024-01-01", end="2024-12-31 23:00"):
@@ -28,7 +30,7 @@ def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
 
 # === Estimate Wind Power (W) ===
 def estimate_wind_power(df):
-    coeff = 0.5 * AIR_DENSITY * SWEEP_AREA
+    coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
     df['wind_power_w'] = coeff * (df['Wind Speed'] ** 3)
     return df
 

@@ -11,7 +11,10 @@ import warnings
 
 # === Constants ===
 AIR_DENSITY = 1.121  # kg/m³
-ROTOR_AREA = 1.6     # m²
+TURBINE_RADIUS = 50  # meters (for 100m diameter)
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # ~7,850 m²
+EFFICIENCY = 0.40
+TURBINE_COUNT = 16  # 2.5 MW * 16 = 40 MW total
 
 # === Forecast Horizon ===
 FORECAST_START = "2024-01-01"
@@ -27,9 +30,10 @@ def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
     df.dropna(subset=['Wind Speed'], inplace=True)
     return df.set_index('datetime').sort_index()
 
-# === Convert Wind Speed to Power (kW) ===
-def wind_speed_to_power(wind_speed, rho=AIR_DENSITY, area=ROTOR_AREA):
-    return 0.5 * rho * area * (wind_speed ** 3) / 1000
+# === Convert Wind Speed to Total Wind Farm Power (kW) ===
+def wind_speed_to_power(wind_speed):
+    coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
+    return coeff * (wind_speed ** 3) / 1000  # in kW
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -46,20 +50,20 @@ def prepare_features(df):
 
 # === Create Synthetic Forecast Features for 2024 ===
 def generate_2024_features():
-    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')  # Fix warning from deprecated 'H'
+    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
     df = pd.DataFrame({'datetime': date_range})
     df['hour'] = df['datetime'].dt.hour
     df['dayofyear'] = df['datetime'].dt.dayofyear
     df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
-    df['is_clear'] = 1  # assume clear for now
+    df['is_clear'] = 1
     df['Temperature'] = 10 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
     df['Pressure'] = 1013
     df['Relative Humidity'] = 50
     df['Dew Point'] = 5
     return df.set_index('datetime')
 
-# === Train on 2018–2023 and Forecast 2024 ===
+# === Train and Forecast ===
 def train_and_forecast(X_train, y_train, X_forecast):
     model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False)
     with warnings.catch_warnings():
@@ -82,7 +86,7 @@ def main():
     y_pred = train_and_forecast(X_train, y_train, X_forecast)
     forecast_df = pd.DataFrame({
         'datetime': df_forecast.index,
-        'wind_power_mw': y_pred / 1000
+        'wind_power_mw': y_pred / 1000  # convert kW to MW for the full farm
     })
 
     print("Saving forecast results...")
