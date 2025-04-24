@@ -23,11 +23,14 @@ We are testing for forecast variability so we need to isolate for other variable
    d(t): day of week adjustment
    s(t): seasonal adjustment
    ϵ(t): random noise
+
+   * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring/fall, based on the observed increase in cooling-related energy use reported by Shehabi et al.~\cite{shehabi2016}. To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Mashayekhy et al.~\cite{mashayekhy2015}.
+
    
-2. Operates 24/7, 365 days a year, with no demand-side flexibility
-3. All electricity is intended to be supplied by on-site renewable infrastructure 
-4. When renewable output is insufficient, the center draws from the local power grid.
-5. There is no energy storage or batteries in the base model 
+3. Operates 24/7, 365 days a year, with no demand-side flexibility
+4. All electricity is intended to be supplied by on-site renewable infrastructure 
+5. When renewable output is insufficient, the center draws from the local power grid.
+6. There is no energy storage or batteries in the base model 
 
 ### Renewable Energy Infrastructure:
 We need a baseline conversion from weather to power in order to assess how ML forecast quality affects power output, ensuring consistency across geographies. The data centers have a fixed number of wind turbines or solar panels sized to match peak production under optimal conditions.
