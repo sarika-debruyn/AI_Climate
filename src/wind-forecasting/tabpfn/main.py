@@ -1,107 +1,105 @@
-# === TabPFN Wind Forecast with Timestamp Output (Fixed Index Issue + Results Directory Creation) ===
 import pandas as pd
 import numpy as np
 import torch
-import os
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from tabpfn import TabPFNRegressor
+import os
+import warnings
 
-# === Step 1: Estimate Wind Power ===
-def compute_wind_power(df, rotor_area=1.6, air_density=1.121):
-    df['wind_power'] = 0.5 * air_density * rotor_area * (df['Wind Speed'] ** 3) / 1000  # in kW
-    return df
+# === Constants ===
+AIR_DENSITY = 1.121
+ROTOR_AREA = 1.6
+FORECAST_START = "2024-01-01"
+FORECAST_END = "2024-12-31 23:00"
+MAX_TABPFN_SAMPLES = 10000
 
-# === Step 2: Load and Prepare Wind Data ===
-def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
+# === Load Wind Data ===
+def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in years]
-    dfs = []
-    for path in file_paths:
-        if not path.exists():
-            print(f"Warning: Missing file {path}")
-            continue
-        print(f"Loading {path}")
-        dfs.append(pd.read_csv(path, skiprows=2))
-
-    if not dfs:
-        raise ValueError("No wind CSVs were loaded. Check paths or uploads.")
-
+    dfs = [pd.read_csv(path, skiprows=2) for path in file_paths if path.exists()]
     df = pd.concat(dfs, ignore_index=True)
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
     for col in ['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure', 'Cloud Type', 'Dew Point']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df.dropna(subset=['Wind Speed'], inplace=True)
+    return df.set_index('datetime').sort_index()
 
-    df = compute_wind_power(df)
+# === Wind Power Estimation ===
+def wind_speed_to_power(wind_speed, rho=AIR_DENSITY, area=ROTOR_AREA):
+    return 0.5 * rho * area * (wind_speed ** 3) / 1000
 
-    df['cos_hour'] = np.cos(2 * np.pi * df['Hour'] / 24)
-    df['sin_hour'] = np.sin(2 * np.pi * df['Hour'] / 24)
-    df['dayofyear'] = df['datetime'].dt.dayofyear
+# === Feature Engineering ===
+def prepare_features(df):
+    df['hour'] = df.index.hour
+    df['dayofyear'] = df.index.dayofyear
+    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
     df['is_clear'] = (df['Cloud Type'] == 0).astype(int)
 
-    feature_cols = [
-        'Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure',
-        'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear', 'is_clear'
-    ]
-    feature_cols = [col for col in feature_cols if col in df.columns]
+    features = df[['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure',
+                   'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear', 'is_clear']]
+    target = wind_speed_to_power(df['Wind Speed'])
+    return features, target
 
-    df = df.dropna(subset=feature_cols)
-    X = df[feature_cols]
-    y = df['wind_power']
-    timestamps = df['datetime']
-    return X, y, timestamps
+# === Synthetic 2024 Forecast Features ===
+def generate_2024_features():
+    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
+    df = pd.DataFrame({'datetime': date_range})
+    df['hour'] = df['datetime'].dt.hour
+    df['dayofyear'] = df['datetime'].dt.dayofyear
+    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
+    df['is_clear'] = 1
+    df['Wind Speed'] = 3
+    df['Temperature'] = 15 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
+    df['Relative Humidity'] = 60
+    df['Pressure'] = 1013
+    df['Dew Point'] = 10
 
-# === Step 3: Preprocess (with aligned timestamps) ===
-def preprocess(X, y, timestamps):
+    return df.set_index('datetime')[['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure',
+                                     'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear', 'is_clear']]
+
+# === Train & Forecast ===
+def train_and_forecast(X_train, y_train, X_forecast):
+    if len(X_train) > MAX_TABPFN_SAMPLES:
+        sampled_idx = np.random.choice(len(X_train), size=MAX_TABPFN_SAMPLES, replace=False)
+        X_train = X_train.iloc[sampled_idx]
+        y_train = y_train.iloc[sampled_idx]
+
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
-        X_scaled, y, timestamps, test_size=0.2, random_state=42
-    )
-    return (X_train, X_test, y_train, y_test, t_train, t_test), scaler
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_forecast_scaled = scaler.transform(X_forecast)
 
-# === Step 4: Train and Evaluate ===
-def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Training on device: {device}")
-
     model = TabPFNRegressor(device=device)
-    model.fit(X_train, y_train)
+    model.fit(X_train_scaled, y_train)
+    y_forecast = model.predict(X_forecast_scaled)
+    return y_forecast
 
-    y_pred = model.predict(X_test)
+# === Main ===
+def main():
+    print("Loading wind data...")
+    df = load_wind_data()
+    X_train, y_train = prepare_features(df)
 
-    mae = mean_absolute_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    print("Generating 2024 forecast features...")
+    X_forecast = generate_2024_features()
 
-    print("\n=== Evaluation Metrics ===")
-    print(f"MAE:  {mae:.4f}")
-    print(f"RMSE: {rmse:.4f}")
-    print(f"R²:   {r2:.4f}")
-
-    return y_pred
-
-# === Step 5: Main Script ===
-if __name__ == "__main__":
-    X, y, timestamps = load_wind_data()
-
-    max_samples = 10_000
-    if len(X) > max_samples:
-        sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
-        X = X.iloc[sampled_indices]
-        y = y.iloc[sampled_indices]
-        timestamps = timestamps.iloc[sampled_indices]
-
-    (X_train, X_test, y_train, y_test, t_train, t_test), scaler = preprocess(X, y, timestamps)
-    y_pred = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
+    print("Training TabPFN and forecasting...")
+    y_pred = train_and_forecast(X_train, y_train, X_forecast)
 
     forecast_df = pd.DataFrame({
-        'datetime': t_test.values,
+        'datetime': X_forecast.index,
         'wind_power_mw': y_pred / 1000
-    }).sort_values(by='datetime')
+    })
 
-    os.makedirs("../../results", exist_ok=True)
-    forecast_df.to_csv("../../results/wind_tabpfn_forecast.csv", index=False)
-    print("Saved TabPFN forecast to ../../results/wind_tabpfn_forecast.csv")
+    print("Saving forecast results...")
+    os.makedirs("../../model_results", exist_ok=True)
+    forecast_df.to_csv("../../model_results/wind_tabpfn_eval_forecast.csv", index=False)
+    print("✅ Wind TabPFN 2024 forecast saved to model_results.")
+
+if __name__ == "__main__":
+    main()
