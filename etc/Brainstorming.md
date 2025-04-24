@@ -47,7 +47,11 @@ Idealing want high ROI
   b. Use TimeSeriesSplit for NGBoost--> simulates how the model would perform in rolling time windows
   c. TabPFN is pretrained with neural networks via meta-learning so it doesn't need hyperparameter tuning
 
-5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
+4. Evalution:
+   a. Use 2024 weather data then apply same equations to compute power output
+   b. Compute MAE, RMSE
+
+6. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
 Variable | Value / Range | Description | Source / Justification
 C | 7 MW | Constant base demand | TA recommendation; aligns with baseline load in enterprise-scale data centers.
@@ -57,6 +61,9 @@ d(t) | 0.9 (weekends), 1.0 (weekdays) | Weekend vs. weekday load adjustment | Ob
 s(t) | 0.95 (winter), 1.0 (spring/fall), 1.1 (summer) | Seasonal multiplier for cooling impacts | Seasonal energy variation due to HVAC load (Shehabi et al., 2016).
 ε(t) or epsilon(t) | N(1.0, 0.05) | Random Gaussian noise to simulate forecast error | 5% variation based on workload prediction errors (Mashayekhy et al., 2015).
 
+https://cs.gmu.edu/~menasce/cs788/slides/Porter-J-Usage-Patterns-in-Multi-tenant-Data-Centers-Birke.pdf
+https://eta-publications.lbl.gov/sites/default/files/lbnl-1005775_v2.pdf
+https://umu.diva-portal.org/smash/get/diva2:957163/FULLTEXT01.pdf
 
 7. Simulate with battery storage (e.g., 20–50 MWh capacity)
   a. Charge when renewables exceed demand
