@@ -12,6 +12,15 @@ We need to choose the USA cities that isolate solar and wind as dominant energy 
 
 3. **Wind energy:** Mount Storm, West Virginia, was selected as the wind-dominant site for this study due to its strong, consistent wind resources and existing large-scale wind energy infrastructure. It is home to the Mount Storm Wind Farm, a 264 MW facility consisting of 132 turbines spread across 12 miles [3]. This makes it one of the largest wind energy installations in the eastern United States. According to the National Renewable Energy Laboratory (NREL), the region experiences average wind speeds of 7.5 to 8.5 m/s at 100 meters above ground level—well above the threshold for utility-scale wind generation [4]. Furthermore, the site is integrated into the Eastern Interconnection grid, ensuring transmission access and operational relevance. Its combination of real-world deployment, strong wind resource, and available historical weather data makes Mount Storm an ideal case study for evaluating the effectiveness of machine learning-based wind forecasting in renewable-powered data center planning.
 
+### Data Sources:
+1. Solar (Yuma, Arizona):
+   a. training models: https://nsrdb.nrel.gov/ (2018-2023)
+   b. evaluating models on real data: https://cds.climate.copernicus.eu/ (2024)
+   
+3. Wind (Mount Storm, West Virginia):
+   a. *training models* :
+   b. evaluating models on real data: https://cds.climate.copernicus.eu/ (2024)
+   
 ### Data center characteristics:
 We are testing for forecast variability so we need to isolate for other variables.
 1. The data center has a dynamic demand. We use the following time-varying model:
