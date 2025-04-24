@@ -22,7 +22,7 @@ FORECAST_END = "2024-12-31 23:00"
 MAX_TABPFN_SAMPLES = 10000
 
 # === Load Data ===
-def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
     missing = [str(p) for p in file_paths if not p.exists()]
     
