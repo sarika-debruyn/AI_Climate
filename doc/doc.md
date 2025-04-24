@@ -45,9 +45,34 @@ These values reflect current trends in data center design. According to the Upti
 - **Server rack densities** remain mostly under 8 kW, supporting the per-server power assumption.
 - Industry trends indicate increasing infrastructure densification driven by high-performance computing and business applications.
 
-#### 📚 Source:
+#### Source:
 > Uptime Institute. (2024). *Global Data Center Survey 2024*. Uptime Intelligence Report. Available from: [https://uptimeinstitute.com](https://uptimeinstitute.com)
+> E3 White Paper (2024) *Load Growth Is Here to Stay, but Are Data Centers?* Available from: [https://www.ethree.com/wp-content/uploads/2024/07/E3-White-Paper-2024-Load-Growth-Is-Here-to-Stay-but-Are-Data-Centers-2.pdf](https://www.ethree.com/wp-content/uploads/2024/07/E3-White-Paper-2024-Load-Growth-Is-Here-to-Stay-but-Are-Data-Centers-2.pdf)
 
+### Battery-System Storage Infrastructure:
+To model a battery storage system that supports a large-scale renewable-powered data center, we assume a lithium-ion battery energy storage system (BESS) with a usable capacity of 40 MWh. This assumption aligns with the requirements of hyperscale data centers with a peak load of 40 MW, offering approximately one hour of full-load backup or longer partial-load operation. Based on current deployment standards and energy storage best practices, we estimate the system parameters as follows:
+
+- **Battery Chemistry**: Lithium-Ion
+- **Total Capacity**: 50 MWh
+- **Depth of Discharge (DoD)**: 80%
+- **Usable Capacity** = 50 MWh × 0.80 = 40 MWh
+- **Round-Trip Efficiency (RTE)**: 92.5%
+- **Minimum State of Charge (SoC)**: 10%
+- **Maximum State of Charge (SoC)**: 90%
+- **Effective Operating SoC Range**: 80%
+
+Charge/discharge behavior is defined as follows:
+- Batteries charge when on-site renewable generation exceeds the data center’s load.
+- Batteries discharge when demand exceeds available renewable power, helping prevent grid fallback.
+- All charging and discharging cycles account for round-trip efficiency losses.
+- These values reflect current best practices in BESS design for high-performance infrastructure. According to energy modeling reports from NREL and E3:
+- Li-ion batteries typically operate at 90–95% round-trip efficiency, depending on degradation, temperature, and usage rate.
+- SoC limits (10–90%) and 80% DoD are widely adopted to extend battery lifespan and avoid performance loss.
+- This capacity ensures 1 hour of autonomy at peak demand or multi-hour buffering for variable loads.
+
+#### Source:
+> E3 White Paper (2024). Load Growth Is Here to Stay, but Are Data Centers? Available from: https://www.ethree.com/wp-content/uploads/2024/07/E3-White-Paper-2024-Load-Growth-Is-Here-to-Stay-but-Are-Data-Centers-2.pdf
+> NREL. (2021). Energy Storage Futures Study. U.S. Department of Energy. Available from: https://www.energy.gov/sites/default/files/2021/06/f37/2021-Storage-Futures.pdf
 
 ### Renewable Energy Infrastructure:
 We need a baseline conversion from weather to power in order to assess how ML forecast quality affects power output, ensuring consistency across geographies. The data centers have a fixed number of wind turbines or solar panels sized to match peak production under optimal conditions.
