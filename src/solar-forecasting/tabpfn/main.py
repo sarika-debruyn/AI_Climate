@@ -1,107 +1,117 @@
-# === TabPFN Solar Forecast with Timestamp Output (Fixed Index Issue + Results Directory Creation) ===
 import pandas as pd
 import numpy as np
 import torch
-import os
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from tabpfn import TabPFNRegressor
+import os
+import warnings
+import pvlib
 
-# === Step 1: Estimate Solar Power ===
-def compute_solar_power(df, panel_area=1.6, efficiency=0.20):
-    df['solar_power'] = (df['GHI'] * panel_area * efficiency) / 1000  # kW
-    return df
+# === Constants ===
+LATITUDE = 32.7
+LONGITUDE = -114.63
+PANEL_AREA = 1.6
+EFFICIENCY_BASE = 0.20
+TEMP_COEFF = 0.004
+T_REF = 25
+FORECAST_START = "2024-01-01"
+FORECAST_END = "2024-12-31 23:00"
 
-# === Step 2: Load and Prepare Solar Data ===
-def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
+# === Load Data ===
+def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
-    dfs = []
-    for path in file_paths:
-        if not path.exists():
-            print(f"Warning: Missing file {path}")
-            continue
-        print(f"Loading {path}")
-        dfs.append(pd.read_csv(path, skiprows=2))
-
-    if not dfs:
-        raise ValueError("No solar CSVs were loaded. Check paths or uploads.")
-
+    dfs = [pd.read_csv(path, skiprows=2) for path in file_paths if path.exists()]
     df = pd.concat(dfs, ignore_index=True)
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
-    for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Pressure', 'Ozone', 'Dew Point']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+    for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Pressure', 'Cloud Type']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
     df.dropna(subset=['GHI'], inplace=True)
+    return df.set_index('datetime').sort_index()
 
-    df = compute_solar_power(df)
-    df['cos_hour'] = np.cos(2 * np.pi * df['Hour'] / 24)
-    df['sin_hour'] = np.sin(2 * np.pi * df['Hour'] / 24)
+# === Add Solar Zenith ===
+def add_zenith_angle(df):
+    solar_position = pvlib.solarposition.get_solarposition(time=df.index, latitude=LATITUDE, longitude=LONGITUDE)
+    df['zenith'] = solar_position['zenith'].values
+    return df
+
+# === Solar Power ===
+def temp_derated_efficiency(temp, base_eff=EFFICIENCY_BASE, gamma=TEMP_COEFF, T_ref=T_REF):
+    return base_eff * (1 - gamma * (temp - T_ref))
+
+def ghi_to_power(ghi, temp):
+    eff = temp_derated_efficiency(temp)
+    return ghi * PANEL_AREA * eff / 1000
+
+# === Feature Engineering ===
+def prepare_features(df):
+    df['hour'] = df.index.hour
+    df['dayofyear'] = df.index.dayofyear
+    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
+    df['zenith_norm'] = df['zenith'] / 90.0
+    df['is_clear'] = (df['Cloud Type'] == 0).astype(int)
+
+    features = df[['sin_hour', 'cos_hour', 'dayofyear', 'zenith_norm',
+                   'DHI', 'DNI', 'Temperature', 'Relative Humidity', 'Wind Speed', 'is_clear']]
+    target = ghi_to_power(df['GHI'], df['Temperature'])
+    return features, target
+
+# === Synthetic Forecast Features ===
+def generate_2024_features():
+    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
+    df = pd.DataFrame({'datetime': date_range})
+    df['hour'] = df['datetime'].dt.hour
     df['dayofyear'] = df['datetime'].dt.dayofyear
+    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
+    df['zenith'] = 45
+    df['zenith_norm'] = df['zenith'] / 90.0
+    df['is_clear'] = 1
+    df['DHI'] = 100
+    df['DNI'] = 600
+    df['Temperature'] = 25 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
+    df['Relative Humidity'] = 40
+    df['Wind Speed'] = 3
+    return df.set_index('datetime')[['sin_hour', 'cos_hour', 'dayofyear', 'zenith_norm',
+                                     'DHI', 'DNI', 'Temperature', 'Relative Humidity', 'Wind Speed', 'is_clear']]
 
-    feature_cols = [
-        'GHI', 'Temperature', 'DHI', 'DNI',
-        'Wind Speed', 'Relative Humidity', 'Pressure',
-        'Ozone', 'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear'
-    ]
-    feature_cols = [col for col in feature_cols if col in df.columns]
-
-    df = df.dropna(subset=feature_cols)
-    X = df[feature_cols]
-    y = df['solar_power']
-    timestamps = df['datetime']
-    return X, y, timestamps
-
-# === Step 3: Preprocess ===
-def preprocess(X, y, timestamps):
+# === Train & Forecast ===
+def train_and_forecast(X_train, y_train, X_forecast):
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    X_train, X_test, y_train, y_test, t_train, t_test = train_test_split(
-        X_scaled, y, timestamps, test_size=0.2, random_state=42
-    )
-    return (X_train, X_test, y_train, y_test, t_train, t_test), scaler
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_forecast_scaled = scaler.transform(X_forecast)
 
-# === Step 4: Train and Evaluate ===
-def train_evaluate_tabpfn(X_train, X_test, y_train, y_test):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Training on device: {device}")
-
     model = TabPFNRegressor(device=device)
-    model.fit(X_train, y_train)
+    model.fit(X_train_scaled, y_train)
+    y_forecast = model.predict(X_forecast_scaled)
+    return y_forecast
 
-    y_pred = model.predict(X_test)
+# === Main ===
+def main():
+    print("Loading solar data...")
+    df = load_solar_data()
+    df = add_zenith_angle(df)
+    X_train, y_train = prepare_features(df)
 
-    mae = mean_absolute_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    print("Generating 2024 forecast features...")
+    X_forecast = generate_2024_features()
 
-    print("\n=== Evaluation Metrics ===")
-    print(f"MAE:  {mae:.4f}")
-    print(f"RMSE: {rmse:.4f}")
-    print(f"R²:   {r2:.4f}")
-
-    return y_pred
-
-# === Step 5: Main Script ===
-if __name__ == "__main__":
-    X, y, timestamps = load_solar_data()
-
-    max_samples = 10_000
-    if len(X) > max_samples:
-        sampled_indices = np.random.choice(len(X), size=max_samples, replace=False)
-        X = X.iloc[sampled_indices]
-        y = y.iloc[sampled_indices]
-        timestamps = timestamps.iloc[sampled_indices]
-
-    (X_train, X_test, y_train, y_test, t_train, t_test), scaler = preprocess(X, y, timestamps)
-    y_pred = train_evaluate_tabpfn(X_train, X_test, y_train, y_test)
+    print("Training TabPFN and forecasting...")
+    y_pred = train_and_forecast(X_train, y_train, X_forecast)
 
     forecast_df = pd.DataFrame({
-        'datetime': t_test.values,
+        'datetime': X_forecast.index,
         'solar_power_mw': y_pred / 1000
-    }).sort_values(by='datetime')
+    })
 
-    os.makedirs("../../results", exist_ok=True)
-    forecast_df.to_csv("../../results/solar_tabpfn_forecast.csv", index=False)
-    print("Saved TabPFN forecast to ../../results/solar_tabpfn_forecast.csv")
+    print("Saving forecast results...")
+    os.makedirs("../../model_results", exist_ok=True)
+    forecast_df.to_csv("../../model_results/solar_tabpfn_eval_forecast.csv", index=False)
+    print("✅ Solar TabPFN 2024 forecast saved to model_results.")
+
+if __name__ == "__main__":
+    main()
