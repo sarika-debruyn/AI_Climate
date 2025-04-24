@@ -30,7 +30,24 @@ We are testing for forecast variability so we need to isolate for other variable
 3. Operates 24/7, 365 days a year, with no demand-side flexibility
 4. All electricity is intended to be supplied by on-site renewable infrastructure 
 5. When renewable output is insufficient, the center draws from the local power grid.
-6. There is no energy storage or batteries in the base model 
+
+To model a large-scale data center powered by renewable energy, we assume a **peak power demand of 40 MW**. This assumption aligns with the infrastructure scale of regional commercial or hyperscale data centers commonly used by cloud providers. Based on average server power draw and Power Usage Effectiveness (PUE) benchmarks, we estimate the number of servers and power distribution as follows:
+
+- **Peak Total Power**: 40 MW  
+- **Power Usage Effectiveness (PUE)**: 1.33  
+- **Power per Server**: 500 W (0.5 kW)
+- **IT Load** = 40 MW / 1.33 ≈ **30.08 MW**
+- **Estimated Servers** = 30.08 MW / 0.5 kW ≈ **60,160 servers**
+- **Non-IT Load** (cooling, lighting, etc.) ≈ **10 MW**
+
+These values reflect current trends in data center design. According to the Uptime Institute's 2024 Global Survey:
+- The **average PUE across all data centers is 1.56**, with newer, more efficient builds achieving **PUEs of 1.3 or better**.
+- **Server rack densities** remain mostly under 8 kW, supporting the per-server power assumption.
+- Industry trends indicate increasing infrastructure densification driven by high-performance computing and business applications.
+
+#### 📚 Source:
+> Uptime Institute. (2024). *Global Data Center Survey 2024*. Uptime Intelligence Report. Available from: [https://uptimeinstitute.com](https://uptimeinstitute.com)
+
 
 ### Renewable Energy Infrastructure:
 We need a baseline conversion from weather to power in order to assess how ML forecast quality affects power output, ensuring consistency across geographies. The data centers have a fixed number of wind turbines or solar panels sized to match peak production under optimal conditions.
