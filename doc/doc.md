@@ -101,6 +101,36 @@ To model the output of our solar forecast models at a realistic scale, we assume
 > [First Solar – Utility-Scale PV Power Plants](https://www.firstsolar.com/en/Technologies-and-Capabilities/Utility-Scale-PV-Power-Plants)  
 > [NextEra Energy – Solar Project Overview](https://www.nexteraenergy.com/what-we-do/solar.html)
 
+## Wind Farm Assumptions:
+
+To match the solar model and data center peak load, we simulate a **40 MW utility-scale wind farm**. These assumptions are based on industry norms and government resources.
+
+### Turbine Specifications
+
+| Parameter             | Assumption              | Source |
+|----------------------|--------------------------|--------|
+| **Turbine Rating**    | 2.5 MW per turbine       | [NREL][1], [DOE][2] |
+| **Rotor Diameter**    | ~100 m                  | [NREL][1] |
+| **Hub Height**        | ~80 m                   | [NREL][1] |
+| **Turbine Count**     | 16 turbines (40 MW / 2.5 MW) | Calculation |
+| **Rated Wind Speed**  | ~12–13 m/s              | [GE, Vestas][3] |
+
+
+### Land and Layout
+
+| Metric                | Assumption              | Source |
+|----------------------|--------------------------|--------|
+| **Turbine Spacing**   | ~700m × 300m (7D × 3D) per turbine | [NREL][1] |
+| **Land Area Needed**  | ~1.6 km² for entire farm | [NREL][1] |
+
+> Note: Only 1–2% of the land is physically occupied by turbines. The rest can be used for agriculture or open space.
+
+#### Sources
+
+> [1]: [NREL Land Use Requirements for Wind Turbines](https://www.nrel.gov/docs/fy13osti/56290.pdf)  
+> [2]: [DOE Wind Energy Technologies Office](https://www.energy.gov/eere/wind)  
+> [3]: [Vestas V100-2.0 MW Specs](https://www.vestas.com/en/products/4-mw-platform/v100-2-0_mw), [GE Renewable Energy Turbines](https://www.ge.com/renewableenergy/wind-energy/onshore-wind)
+
 
 ### Power Conversion:
 1. Solar: P = A x r x H X PR
