@@ -20,7 +20,24 @@ We need to choose the USA cities that isolate solar and wind as dominant energy 
 3. Wind (Mount Storm, West Virginia):
    a. *training models* :
    b. evaluating models on real data: https://cds.climate.copernicus.eu/ (2024)
-   
+
+### Solar Farm Size characteristics:
+To model the output of our solar forecast models at a realistic scale, we assume a **40 MW utility-scale solar farm**. This assumption aligns with standard practices and data center peak load matching. Based on industry and government sources, the following parameters were used:
+
+- **Panel Area per Unit**: 1.6 m²  
+- **Efficiency**: 20%  
+- **Estimated Panel Count**: 160,000  
+- **Total Panel Area**: 256,000 m²  
+- **Land Area per MW**: 2.5–4 acres (~10,117 to 16,187 m²)
+
+#### 📚 Sources
+
+> [NREL Report: Land-Use Requirements for Solar](https://www.nrel.gov/docs/fy13osti/56290.pdf)  
+> [SEIA – Utility-Scale Solar Power Overview](https://www.seia.org/initiatives/utility-scale-solar-power)  
+> [First Solar – Utility-Scale PV Power Plants](https://www.firstsolar.com/en/Technologies-and-Capabilities/Utility-Scale-PV-Power-Plants)  
+> [NextEra Energy – Solar Project Overview](https://www.nexteraenergy.com/what-we-do/solar.html)
+
+
 ### Data center characteristics:
 We are testing for forecast variability so we need to isolate for other variables.
 1. The data center has a dynamic demand. We use the following time-varying model:
