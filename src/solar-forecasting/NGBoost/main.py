@@ -18,6 +18,7 @@ PANEL_AREA = 1.6  # m²
 EFFICIENCY_BASE = 0.20
 TEMP_COEFF = 0.004
 T_REF = 25
+TOTAL_FARM_AREA = 256000  # m² for 40 MW farm (160,000 panels)
 
 # === Forecast Horizon ===
 FORECAST_START = "2024-01-01"
@@ -47,7 +48,7 @@ def temp_derated_efficiency(temp, base_eff=EFFICIENCY_BASE, gamma=TEMP_COEFF, T_
 
 def ghi_to_power(ghi, temp):
     eff = temp_derated_efficiency(temp)
-    return ghi * PANEL_AREA * eff / 1000
+    return ghi * TOTAL_FARM_AREA * eff / 1000  # now scaled to total solar farm
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -105,7 +106,7 @@ def main():
     y_pred = train_and_forecast(X_train, y_train, X_forecast)
     forecast_df = pd.DataFrame({
         'datetime': df_forecast.index,
-        'solar_power_mw': y_pred / 1000
+        'solar_power_mw': y_pred / 1000  # final output in MW
     })
 
     print("Saving forecast results...")

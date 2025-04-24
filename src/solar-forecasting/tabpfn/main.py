@@ -17,6 +17,7 @@ PANEL_AREA = 1.6
 EFFICIENCY_BASE = 0.20
 TEMP_COEFF = 0.004
 T_REF = 25
+TOTAL_FARM_AREA = 256000  # m² for 40 MW solar farm
 FORECAST_START = "2024-01-01"
 FORECAST_END = "2024-12-31 23:00"
 MAX_TABPFN_SAMPLES = 10000
@@ -25,7 +26,7 @@ MAX_TABPFN_SAMPLES = 10000
 def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
     missing = [str(p) for p in file_paths if not p.exists()]
-    
+
     if missing:
         raise FileNotFoundError(f"The following files are missing: {missing}")
 
@@ -36,7 +37,6 @@ def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df.dropna(subset=['GHI'], inplace=True)
     return df.set_index('datetime').sort_index()
-
 
 # === Add Solar Zenith ===
 def add_zenith_angle(df):
@@ -50,7 +50,7 @@ def temp_derated_efficiency(temp, base_eff=EFFICIENCY_BASE, gamma=TEMP_COEFF, T_
 
 def ghi_to_power(ghi, temp):
     eff = temp_derated_efficiency(temp)
-    return ghi * PANEL_AREA * eff / 1000
+    return ghi * TOTAL_FARM_AREA * eff / 1000  # scaled to solar farm output
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -117,7 +117,7 @@ def main():
 
     forecast_df = pd.DataFrame({
         'datetime': X_forecast.index,
-        'solar_power_mw': y_pred / 1000
+        'solar_power_mw': y_pred / 1000  # convert kW to MW for full solar farm
     })
 
     print("Saving forecast results...")
