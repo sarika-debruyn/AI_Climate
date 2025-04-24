@@ -72,6 +72,8 @@ Idealing want high ROI
 2. Quantify how much battery storage reduces reliance on the grid, especially when forecasts are poor
 3. Compare solar vs. wind in terms of reliability, predictability, and storage needs
 
-## Climatology Method:
-- Global Horizontal Irridiance (GHI) is a good proxy for solar power availability --> the higher the GHI, the more solar energy available
-- Use 
+## Files and Purpose:
+1. main.py --> Train + evaluate climatology model on 2021–2023
+2. forecast.py -->	Generate 2024 forecast for solar and wind baseline using saved climatology
+3. simulate.py -->	Run battery + grid fallback simulations using any forecast
+4. visualize.py -->	Plot performance of forecasts + simulations
