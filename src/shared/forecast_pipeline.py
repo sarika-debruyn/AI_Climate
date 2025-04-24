@@ -1,83 +1,51 @@
-# === Demand + Battery Simulation Pipeline for All Forecast Files ===
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[1]))  # Add src/ to path
-
+# === forecast.py — Generates 2024 Forecasts for Baseline, NGBoost, and TabPFN Models ===
 import pandas as pd
-import numpy as np
-import os
-
-from shared.demand_model import generate_time_varying_demand
-from shared.battery_simulator import simulate_battery_dispatch
+from pathlib import Path
 
 # === Config ===
-INPUT_DIR = Path("../results")
-OUTPUT_DIR = INPUT_DIR
-BATTERY_CAPACITY_MWH = 20
-MAX_RATE_MW = 10
-EFFICIENCY = 0.9
+forecast_start = "2024-01-01 00:00"
+forecast_end = "2024-12-31 23:00"
+forecast_timestamps = pd.date_range(forecast_start, forecast_end, freq="H")
+output_dir = Path("../results")
+output_dir.mkdir(parents=True, exist_ok=True)
 
-# === List of Forecast Files ===
-forecast_files = [
-    "solar_ngboost_forecast.csv",
-    "solar_tabpfn_forecast.csv",
-    "solar_baseline_forecast.csv",
-    "wind_ngboost_forecast.csv",
-    "wind_tabpfn_forecast.csv",
-    "wind_baseline_forecast.csv"
-]
+# === Shared Constants ===
+PANEL_AREA = 1.6
+EFFICIENCY_BASE = 0.20
+AIR_DENSITY = 1.121
+ROTOR_AREA = 1.6
 
-# === Load Forecast ===
-def load_forecast(path):
-    df = pd.read_csv(path)
-    if "datetime" in df.columns:
-        df["datetime"] = pd.to_datetime(df["datetime"])
-    elif "timestamp" in df.columns:
-        df["datetime"] = pd.to_datetime(df["timestamp"])
-    else:
-        raise KeyError(f"No datetime or timestamp column found in {path.name}")
-
-    df.set_index("datetime", inplace=True)
+# === Helper to Load Climatology ===
+def load_climatology(file_path):
+    df = pd.read_csv(file_path)
+    df.columns = df.columns.str.lower()
     return df
 
-# === Apply Simulation ===
-def run_simulation_all():
-    for filename in forecast_files:
-        input_path = INPUT_DIR / filename
-        output_path = OUTPUT_DIR / filename.replace("forecast", "simulated")
+# === Generate Baseline Forecast for Solar ===
+def generate_solar_baseline():
+    df = pd.DataFrame({"datetime": forecast_timestamps})
+    df["month"] = df["datetime"].dt.month
+    df["hour"] = df["datetime"].dt.hour
 
-        print(f"\n🔄 Running simulation on: {input_path.name}")
-        try:
-            df = load_forecast(input_path)
-        except Exception as e:
-            print(f"Error loading {filename}: {e}")
-            continue
+    climatology = load_climatology("../shared/climatology/solar_climatology.csv")
+    df = pd.merge(df, climatology, on=["month", "hour"], how="left")
+    df["solar_power_mw"] = (df["ghi_climatology"] * PANEL_AREA * EFFICIENCY_BASE) / 1000
+    df[["datetime", "solar_power_mw"]].to_csv(output_dir / "solar_baseline_forecast.csv", index=False)
+    print("✅ Saved solar_baseline_forecast.csv")
 
-        df = generate_time_varying_demand(df)
+# === Generate Baseline Forecast for Wind ===
+def generate_wind_baseline():
+    df = pd.DataFrame({"datetime": forecast_timestamps})
+    df["month"] = df["datetime"].dt.month
+    df["hour"] = df["datetime"].dt.hour
 
-        if 'solar_power_mw' in df.columns:
-            df.rename(columns={'solar_power_mw': 'power_mw'}, inplace=True)
-        elif 'wind_power_mw' in df.columns:
-            df.rename(columns={'wind_power_mw': 'power_mw'}, inplace=True)
-        elif 'GHI_climatology' in df.columns:
-            PANEL_AREA = 1.6
-            EFFICIENCY_BASE = 0.20
-            df['power_mw'] = (df['GHI_climatology'] * PANEL_AREA * EFFICIENCY_BASE) / 1000
-        elif 'WindPower_climatology' in df.columns:
-            df['power_mw'] = df['WindPower_climatology'] / 1e6
-        else:
-            print(f"⚠️ Skipping {filename}: no recognized forecast column found.")
-            continue
-
-        df['power_mw'] = df['power_mw'].fillna(0)
-        df['solar_power_mw'] = df['power_mw']  # unify column name for sim function
-
-        df = simulate_battery_dispatch(df, battery_capacity_mwh=BATTERY_CAPACITY_MWH,
-                                       max_rate_mw=MAX_RATE_MW, efficiency=EFFICIENCY)
-
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        df.to_csv(output_path)
-        print(f"Saved simulated results to: {output_path.name}")
+    climatology = load_climatology("../shared/climatology/wind_climatology.csv")
+    df = pd.merge(df, climatology, on=["month", "hour"], how="left")
+    df[["datetime", "wind_power_climatology"]].rename(columns={"wind_power_climatology": "wind_power_mw"}).to_csv(
+        output_dir / "wind_baseline_forecast.csv", index=False
+    )
+    print("✅ Saved wind_baseline_forecast.csv")
 
 if __name__ == "__main__":
-    run_simulation_all()
+    generate_solar_baseline()
+    generate_wind_baseline()

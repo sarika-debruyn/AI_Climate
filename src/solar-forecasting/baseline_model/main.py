@@ -1,3 +1,4 @@
+# === Baseline Solar Model (main.py) — Evaluation and Climatology Training ===
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +17,8 @@ PANEL_AREA = 1.6  # m²
 EFFICIENCY_BASE = 0.20
 TEMP_COEFF = 0.004
 T_REF = 25
+RESULTS_DIR = Path("../../model_results")
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # === Data Loading ===
 def load_solar_data(base_dir="/Users/sarikadebruyn/AI_Climate/AI_Climate/src/solar-forecasting/solar_data", years=range(2018, 2024)):
@@ -107,10 +110,10 @@ def main():
     print(f"\n📊 Climatology MAE (2021–2023): {mae:.2f} W/m²")
     print(f"📊 Climatology RMSE (2021–2023): {rmse:.2f} W/m²\n")
 
-    # Save forecast
-    os.makedirs("../../results", exist_ok=True)
-    df_forecast[['timestamp', 'GHI_climatology']].to_csv("../../results/solar_baseline_forecast.csv", index=False)
-    print("Saved baseline solar forecast to ../../results/solar_baseline_forecast.csv")
+    # Save evaluation forecast and climatology
+    df_forecast[['timestamp', 'GHI_climatology']].to_csv(RESULTS_DIR / "solar_baseline_eval_forecast.csv", index=False)
+    climatology.to_csv(RESULTS_DIR / "solar_climatology.csv", index=False)
+    print("✅ Saved evaluation forecast and climatology to model_results/")
 
     plot_forecast(df_forecast)
     plot_heatmap(df_forecast, year=2022)
