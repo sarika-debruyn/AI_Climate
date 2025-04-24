@@ -1,34 +1,39 @@
 import xarray as xr
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 # === CONFIGURATION ===
-filename = "solar_data/solar_2024_part1.nc"  
-panel_area = 1.6  # in m² (typical single solar panel)
-efficiency = 0.20  # panel efficiency
-timezone_offset = -7  # For Yuma, AZ (UTC−7)
+data_folder = Path("solar_data/")  
+panel_area = 1.6  # m²
+efficiency = 0.20
+timezone_offset = -7  # Yuma, AZ timezone offset (UTC−7)
 
-# === LOAD DATA ===
-ds = xr.open_dataset(filename)
+# === FIND ALL NETCDF FILES IN FOLDER ===
+nc_files = sorted(data_folder.glob("*.nc"))
+print("Looking in:", data_folder)
+print("Found files:", nc_files)
 
-# === PRINT VARIABLE NAMES IF NEEDED ===
-print("Available variables:", ds.data_vars.keys())
+if not nc_files:
+    raise FileNotFoundError("⚠️ No .nc files found in the specified folder. Check your path.")
 
-# === EXTRACT VARIABLES ===
-ghi = ds['ssrd']  # Surface solar radiation downward (J/m^2)
-temp = ds['t2m']  # 2m temperature (Kelvin)
-times = pd.to_datetime(ds['time'].values)
+# === LOAD AND CONCATENATE ===
+datasets = [xr.open_dataset(file) for file in nc_files]
+ds_merged = xr.concat(datasets, dim="time")
 
-# Convert GHI from J/m² to W/m² by dividing by 3600 (J/s = Watts) — hourly average
-ghi_w_m2 = ghi.values[:, 0, 0] / 3600
+# === EXTRACT DATA ===
+ghi = ds_merged['ssrd']  # Surface solar radiation downward [J/m²]
+temp = ds_merged['t2m']  # 2m temperature [K]
+times = pd.to_datetime(ds_merged['time'].values)
 
-# Convert temperature from Kelvin to Celsius
-temp_c = temp.values[:, 0, 0] - 273.15
+# === CONVERT UNITS ===
+ghi_w_m2 = ghi.values[:, 0, 0] / 3600  # J/m² to W/m²
+temp_c = temp.values[:, 0, 0] - 273.15  # Kelvin to Celsius
 
-# === CALCULATE SOLAR POWER OUTPUT (kW) ===
+# === COMPUTE SOLAR POWER (kW) ===
 solar_power_kw = (ghi_w_m2 * panel_area * efficiency) / 1000  # in kW
 
-# === CREATE DATAFRAME ===
+# === CREATE FINAL DATAFRAME ===
 df = pd.DataFrame({
     'timestamp_utc': times,
     'ghi_w_m2': ghi_w_m2,
@@ -36,12 +41,8 @@ df = pd.DataFrame({
     'solar_power_kw': solar_power_kw
 })
 
-# === OPTIONAL: ADJUST TIMEZONE (if comparing to local datasets) ===
 df['timestamp_local'] = df['timestamp_utc'] + pd.to_timedelta(timezone_offset, unit='h')
 
-# === SAVE OR RETURN ===
-df.to_csv("solar_power_ground_truth_2024.csv", index=False)
-print("Saved to: solar_power_ground_truth_2024.csv")
-
-# === Preview ===
-print(df.head())
+# === SAVE TO CSV ===
+df.to_csv("solar_power_2024_full.csv", index=False)
+print("✅ Saved to solar_power_2024_full.csv")
