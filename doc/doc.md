@@ -24,7 +24,7 @@ We are testing for forecast variability so we need to isolate for other variable
    s(t): seasonal adjustment
    ϵ(t): random noise
 
-   * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring and fall, based on the observed increase in cooling-related energy use reported by Shehabi et al.~\cite{shehabi2016}. To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Mashayekhy et al.~\cite{mashayekhy2015}.
+   * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring and fall, based on the observed increase in cooling-related energy use reported by Shehabi et al. (8). To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Qiu et al. (9).
 
    
 3. Operates 24/7, 365 days a year, with no demand-side flexibility
@@ -72,4 +72,7 @@ v: wind speed (m/s)
 5. NREL. PVWatts Version 5 Manual. Technical Report NREL/TP-6A20-62641. 2014. https://www.nrel.gov/docs/fy14osti/62641.pdf
 6. https://www.irena.org/Publications/2024/Sep/Renewable-Power-Generation-Costs-in-2023 
 7. EIA. https://www.eia.gov/electricity/monthly/epm_table_grapher.php?t=epmt_5_3
+8. https://eta-publications.lbl.gov/sites/default/files/lbnl-1005775_v2.pdf
+9. https://www.mdpi.com/1996-1073/12/4/646
+10. https://umu.diva-portal.org/smash/get/diva2:957163/FULLTEXT01.pdf --> more variable sources
 
