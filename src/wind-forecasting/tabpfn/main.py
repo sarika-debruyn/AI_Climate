@@ -17,9 +17,18 @@ FORECAST_END = "2024-12-31 23:00"
 MAX_TABPFN_SAMPLES = 10000
 
 # === Load Wind Data ===
-def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
+def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in years]
-    dfs = [pd.read_csv(path, skiprows=2) for path in file_paths if path.exists()]
+    dfs = []
+    for path in file_paths:
+        if not path.exists():
+            print(f"Missing: {path}")
+            continue
+        print(f"Loaded: {path}")
+        dfs.append(pd.read_csv(path, skiprows=2))
+    
+    if not dfs:
+        raise ValueError("No wind CSVs were loaded. Check paths or uploads.")
     df = pd.concat(dfs, ignore_index=True)
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
     for col in ['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure', 'Cloud Type', 'Dew Point']:
