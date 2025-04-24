@@ -34,7 +34,7 @@ Idealing want high ROI
 
 ## Approach:
 1. Compare two types of data centers as test beds:
-  a. Arizona (solar)
+  a. Arizona (solar) 
   b. West Virginia (wind)
 
 2. Simulate operations under different forecast models:
