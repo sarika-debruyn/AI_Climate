@@ -22,15 +22,21 @@ FORECAST_END = "2024-12-31 23:00"
 MAX_TABPFN_SAMPLES = 10000
 
 # === Load Data ===
-def load_solar_data(base_dir="./", years=range(2018, 2024)):
+def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
-    dfs = [pd.read_csv(path, skiprows=2) for path in file_paths if path.exists()]
+    missing = [str(p) for p in file_paths if not p.exists()]
+    
+    if missing:
+        raise FileNotFoundError(f"The following files are missing: {missing}")
+
+    dfs = [pd.read_csv(path, skiprows=2) for path in file_paths]
     df = pd.concat(dfs, ignore_index=True)
     df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
     for col in ['GHI', 'DHI', 'DNI', 'Temperature', 'Wind Speed', 'Relative Humidity', 'Pressure', 'Cloud Type']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df.dropna(subset=['GHI'], inplace=True)
     return df.set_index('datetime').sort_index()
+
 
 # === Add Solar Zenith ===
 def add_zenith_angle(df):
