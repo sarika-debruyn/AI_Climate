@@ -49,28 +49,13 @@ Idealing want high ROI
 
 5. Add a realistic time-varying demand model (hourly, daily, seasonal + noise)
 
-\begin{table}[ht]
-\centering
-\caption{Values for Time-Varying Demand Model Variables}
-\begin{tabular}{|l|l|l|p{6cm}|}
-\hline
-\textbf{Variable} & \textbf{Value / Range} & \textbf{Description} & \textbf{Source / Justification} \\
-\hline
-$C$ & 7 MW & Constant base demand & TA recommendation; aligns with average baseline load in enterprise-scale data centers. \\
-\hline
-$V_c$ & 3 MW & Max variable demand component & TA recommendation; captures dynamic usage on top of base load. \\
-\hline
-$h(t)$ & 0.85–1.2 & Hourly variation multiplier & Based on CPU load patterns in Birke et al.~\cite{birke2012}; lower at night, peaks midday. \\
-\hline
-$d(t)$ & 0.9 (weekends), 1.0 (weekdays) & Daily multiplier for weekend/weekday load & Weekend demand ~10\% lower than weekday per usage profiling in Birke et al.~\cite{birke2012}. \\
-\hline
-$s(t)$ & 0.95 (winter), 1.0 (spring/fall), 1.1 (summer) & Seasonal multiplier for cooling impact & Increased summer HVAC load per Shehabi et al.~\cite{shehabi2016}. \\
-\hline
-$\epsilon(t)$ & $\mathcal{N}(1.0, 0.05)$ & Random noise term (Gaussian) & Reflects 5\% forecast error margin, consistent with workload prediction uncertainty in Mashayekhy et al.~\cite{mashayekhy2015}. \\
-\hline
-\end{tabular}
-\label{tab:time_varying_demand}
-\end{table}
+Variable | Value / Range | Description | Source / Justification
+C | 7 MW | Constant base demand | TA recommendation; aligns with baseline load in enterprise-scale data centers.
+V_c | 3 MW | Max variable demand component | TA recommendation; represents dynamic usage on top of base load.
+h(t) | 0.85–1.2 | Hourly variation multiplier | CPU load variation from Birke et al. (2012); peak during day, lower at night.
+d(t) | 0.9 (weekends), 1.0 (weekdays) | Weekend vs. weekday load adjustment | Observed weekend load drops in data center workloads (Birke et al., 2012).
+s(t) | 0.95 (winter), 1.0 (spring/fall), 1.1 (summer) | Seasonal multiplier for cooling impacts | Seasonal energy variation due to HVAC load (Shehabi et al., 2016).
+ε(t) or epsilon(t) | N(1.0, 0.05) | Random Gaussian noise to simulate forecast error | 5% variation based on workload prediction errors (Mashayekhy et al., 2015).
 
 
 7. Simulate with battery storage (e.g., 20–50 MWh capacity)
