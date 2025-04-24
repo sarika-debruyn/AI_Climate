@@ -1,4 +1,3 @@
-Rory Eastland-Fruit rie2104
 Sarika de Bruyn sed2194
 
 The doc/ directory contains the LaTeX document that you are writing. We will provide a
@@ -11,32 +10,6 @@ We need to choose the USA cities that isolate solar and wind as dominant energy 
 1. **Solar Energy:** Yuma, Arizona, was selected as the solar-dominant site in this study due to its exceptional solar resource profile and infrastructure feasibility. According to the National Renewable Energy Laboratory (NREL), Yuma receives an average annual Global Horizontal Irradiance of over 6.5 kWh/m²/day, placing it among the highest in the continental United States [1]. The city experiences approximately 4,000 hours of sunshine per year, earning recognition by the National Climatic Data Center (NCDC) as the sunniest city in the U.S. [2]. This makes Yuma an ideal location for testing the effectiveness of machine learning-based solar forecasting models, as it offers a consistent and abundant solar resource baseline.
 
 3. **Wind energy:** Mount Storm, West Virginia, was selected as the wind-dominant site for this study due to its strong, consistent wind resources and existing large-scale wind energy infrastructure. It is home to the Mount Storm Wind Farm, a 264 MW facility consisting of 132 turbines spread across 12 miles [3]. This makes it one of the largest wind energy installations in the eastern United States. According to the National Renewable Energy Laboratory (NREL), the region experiences average wind speeds of 7.5 to 8.5 m/s at 100 meters above ground level—well above the threshold for utility-scale wind generation [4]. Furthermore, the site is integrated into the Eastern Interconnection grid, ensuring transmission access and operational relevance. Its combination of real-world deployment, strong wind resource, and available historical weather data makes Mount Storm an ideal case study for evaluating the effectiveness of machine learning-based wind forecasting in renewable-powered data center planning.
-
-### Data Sources:
-1. Solar (Yuma, Arizona):
-   a. training models: https://nsrdb.nrel.gov/ (2018-2023)
-   b. evaluating models on real data: https://cds.climate.copernicus.eu/ (2024)
-   
-3. Wind (Mount Storm, West Virginia):
-   a. *training models* :
-   b. evaluating models on real data: https://cds.climate.copernicus.eu/ (2024)
-
-### Solar Farm Size characteristics:
-To model the output of our solar forecast models at a realistic scale, we assume a **40 MW utility-scale solar farm**. This assumption aligns with standard practices and data center peak load matching. Based on industry and government sources, the following parameters were used:
-
-- **Panel Area per Unit**: 1.6 m²  
-- **Efficiency**: 20%  
-- **Estimated Panel Count**: 160,000  
-- **Total Panel Area**: 256,000 m²  
-- **Land Area per MW**: 2.5–4 acres (~10,117 to 16,187 m²)
-
-#### 📚 Sources
-
-> [NREL Report: Land-Use Requirements for Solar](https://www.nrel.gov/docs/fy13osti/56290.pdf)  
-> [SEIA – Utility-Scale Solar Power Overview](https://www.seia.org/initiatives/utility-scale-solar-power)  
-> [First Solar – Utility-Scale PV Power Plants](https://www.firstsolar.com/en/Technologies-and-Capabilities/Utility-Scale-PV-Power-Plants)  
-> [NextEra Energy – Solar Project Overview](https://www.nexteraenergy.com/what-we-do/solar.html)
-
 
 ### Data center characteristics:
 We are testing for forecast variability so we need to isolate for other variables.
@@ -111,6 +84,23 @@ We need a baseline conversion from weather to power in order to assess how ML fo
 - Turbine height = 100m
 - Air density = 1.225 kg/m³ (standard)
 - Power output is modeled using a standard turbine power curve
+
+### Solar Farm Assumptions:
+
+To model the output of our solar forecast models at a realistic scale, we assume a **40 MW utility-scale solar farm**. This assumption aligns with standard practices and data center peak load matching. Based on industry and government sources, the following parameters were used:
+
+- **Panel Area per Unit**: 1.6 m²  
+- **Efficiency**: 20%  
+- **Estimated Panel Count**: 160,000  
+- **Total Panel Area**: 256,000 m²  
+- **Land Area per MW**: 2.5–4 acres (~10,117 to 16,187 m²)
+
+#### Sources
+> [NREL Report: Land-Use Requirements for Solar](https://www.nrel.gov/docs/fy13osti/56290.pdf)  
+> [SEIA – Utility-Scale Solar Power Overview](https://www.seia.org/initiatives/utility-scale-solar-power)  
+> [First Solar – Utility-Scale PV Power Plants](https://www.firstsolar.com/en/Technologies-and-Capabilities/Utility-Scale-PV-Power-Plants)  
+> [NextEra Energy – Solar Project Overview](https://www.nexteraenergy.com/what-we-do/solar.html)
+
 
 ### Power Conversion:
 1. Solar: P = A x r x H X PR
