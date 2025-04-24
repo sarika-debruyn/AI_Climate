@@ -108,7 +108,24 @@ def main():
     forecast_df = evaluate_model(X, y, timestamps)
 
     print("Saving forecast results...")
-    forecast_df.to_csv("../../results/solar_ngboost_forecast.csv", index=False)
+    forecast_df.to_csv("../../model_results/solar_ngboost_eval_forecast.csv", index=False)
+
+    print("Training final model on all data...")
+    final_model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False)
+    final_model.fit(X, y)
+
+    print("Saving final model...")
+    import joblib
+    joblib.dump(final_model, "../../model_results/solar_ngboost_model.pkl")
+    print("✅ Saved NGBoost model to model_results/solar_ngboost_model.pkl")
+
+    print("Saving input features for 2024...")
+    df_features = X.copy()
+    df_features["datetime"] = timestamps.values
+    df_features["solar_power_mw"] = y.values / 1000
+    df_features.to_csv("../../model_results/solar_2024_features.csv", index=False)
+    print("✅ Saved 2024 features to model_results/solar_2024_features.csv")
+
 
 if __name__ == "__main__":
     main()
