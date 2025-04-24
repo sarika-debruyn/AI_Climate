@@ -11,6 +11,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 AIR_DENSITY = 1.121  # kg/m^3 for Mount Storm, WV
 turbine_radius = 40  # meters
 SWEEP_AREA = np.pi * turbine_radius**2
+RESULTS_DIR = Path("../../model_results")
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # === Load Data ===
 def load_wind_data(base_dir="../wind_data"):
@@ -40,7 +42,7 @@ def create_climatology_model(df):
     climatology.rename(columns={'Wind Power (W)': 'WindPower_climatology'}, inplace=True)
     df_test_reset = df_test.reset_index()
     df_forecast = pd.merge(df_test_reset, climatology, on=['month', 'hour'], how='left')
-    return df_forecast, df_test
+    return df_forecast, df_test, climatology
 
 # === Evaluate Model ===
 def evaluate_model(df_forecast):
@@ -78,13 +80,13 @@ def plot_heatmap(df_forecast):
 if __name__ == "__main__":
     df = load_wind_data()
     df = estimate_wind_power(df)
-    df_forecast, df_test = create_climatology_model(df)
+    df_forecast, df_test, climatology = create_climatology_model(df)
     evaluate_model(df_forecast)
 
-    # Save forecast output
-    os.makedirs("../../results", exist_ok=True)
-    df_forecast[['timestamp', 'WindPower_climatology']].to_csv("../../results/wind_baseline_forecast.csv", index=False)
-    print("Saved baseline wind forecast to ../../results/wind_baseline_forecast.csv")
+    # Save outputs
+    df_forecast[['timestamp', 'WindPower_climatology']].to_csv(RESULTS_DIR / "wind_baseline_eval_forecast.csv", index=False)
+    climatology.to_csv(RESULTS_DIR / "wind_climatology.csv", index=False)
+    print("✅ Saved wind baseline outputs to model_results/")
 
     plot_forecast(df_forecast)
     plot_heatmap(df_forecast)
