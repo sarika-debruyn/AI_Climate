@@ -5,11 +5,17 @@ from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.linear_model import LinearRegression
 import os
+import warnings
 
 # === Constants ===
 AIR_DENSITY = 1.121  # kg/m³
 ROTOR_AREA = 1.6     # m²
+
+# === Forecast Horizon ===
+FORECAST_START = "2024-01-01"
+FORECAST_END = "2024-12-31 23:00"
 
 # === Load Wind Data ===
 def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
@@ -38,55 +44,51 @@ def prepare_features(df):
     target = wind_speed_to_power(df['Wind Speed'])
     return features, target
 
-# === Evaluate with TimeSeriesSplit and Save Forecast ===
-def evaluate_model(X, y, timestamps, n_splits=5):
-    tscv = TimeSeriesSplit(n_splits=n_splits)
-    maes, rmses = [], []
-    all_predictions = []
+# === Create Synthetic Forecast Features for 2024 ===
+def generate_2024_features():
+    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')  # Fix warning from deprecated 'H'
+    df = pd.DataFrame({'datetime': date_range})
+    df['hour'] = df['datetime'].dt.hour
+    df['dayofyear'] = df['datetime'].dt.dayofyear
+    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
+    df['is_clear'] = 1  # assume clear for now
+    df['Temperature'] = 10 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
+    df['Pressure'] = 1013
+    df['Relative Humidity'] = 50
+    df['Dew Point'] = 5
+    return df.set_index('datetime')
 
-    for i, (train_idx, val_idx) in enumerate(tscv.split(X)):
-        X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
-        X_val, y_val = X.iloc[val_idx], y.iloc[val_idx]
-
-        model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False)
+# === Train on 2018–2023 and Forecast 2024 ===
+def train_and_forecast(X_train, y_train, X_forecast):
+    model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
         model.fit(X_train, y_train)
-
-        y_pred = model.predict(X_val)
-        mae = np.mean(np.abs(y_pred - y_val))
-        rmse = np.sqrt(np.mean((y_pred - y_val) ** 2))
-
-        maes.append(mae)
-        rmses.append(rmse)
-
-        preds = pd.DataFrame({
-            'datetime': timestamps.iloc[val_idx].values,
-            'wind_power_mw': y_pred / 1000  # convert to MW
-        })
-        all_predictions.append(preds)
-
-        print(f"Fold {i+1}: MAE = {mae:.4f} | RMSE = {rmse:.4f}")
-
-    print(f"\nAverage MAE: {np.mean(maes):.4f}")
-    print(f"Average RMSE: {np.mean(rmses):.4f}")
-
-    return pd.concat(all_predictions).sort_values(by='datetime').reset_index(drop=True)
+        y_forecast = model.predict(X_forecast)
+    return y_forecast
 
 # === Main ===
 def main():
     print("Loading wind data...")
     df = load_wind_data()
+    X_train, y_train = prepare_features(df)
 
-    print("Preparing features...")
-    X, y = prepare_features(df)
-    timestamps = df.index.to_series()
+    print("Generating synthetic 2024 features...")
+    df_forecast = generate_2024_features()
+    X_forecast = df_forecast
 
-    print("Evaluating model performance and generating forecasts...")
-    forecast_df = evaluate_model(X, y, timestamps)
+    print("Training and forecasting 2024...")
+    y_pred = train_and_forecast(X_train, y_train, X_forecast)
+    forecast_df = pd.DataFrame({
+        'datetime': df_forecast.index,
+        'wind_power_mw': y_pred / 1000
+    })
 
     print("Saving forecast results...")
     os.makedirs("../../model_results", exist_ok=True)
     forecast_df.to_csv("../../model_results/wind_ngboost_eval_forecast.csv", index=False)
-    print("✅ Wind NGBoost forecast saved to model_results.")
+    print("✅ Wind NGBoost 2024 forecast saved to model_results.")
 
 if __name__ == "__main__":
     main()
