@@ -19,6 +19,7 @@ TEMP_COEFF = 0.004
 T_REF = 25
 FORECAST_START = "2024-01-01"
 FORECAST_END = "2024-12-31 23:00"
+MAX_TABPFN_SAMPLES = 10000
 
 # === Load Data ===
 def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
@@ -80,6 +81,11 @@ def generate_2024_features():
 
 # === Train & Forecast ===
 def train_and_forecast(X_train, y_train, X_forecast):
+    if len(X_train) > MAX_TABPFN_SAMPLES:
+        sampled_idx = np.random.choice(len(X_train), size=MAX_TABPFN_SAMPLES, replace=False)
+        X_train = X_train.iloc[sampled_idx]
+        y_train = y_train.iloc[sampled_idx]
+
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_forecast_scaled = scaler.transform(X_forecast)
