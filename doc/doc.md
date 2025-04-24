@@ -24,7 +24,7 @@ We are testing for forecast variability so we need to isolate for other variable
    s(t): seasonal adjustment
    ϵ(t): random noise
 
-   * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring/fall, based on the observed increase in cooling-related energy use reported by Shehabi et al.~\cite{shehabi2016}. To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Mashayekhy et al.~\cite{mashayekhy2015}.
+   * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring and fall, based on the observed increase in cooling-related energy use reported by Shehabi et al.~\cite{shehabi2016}. To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Mashayekhy et al.~\cite{mashayekhy2015}.
 
    
 3. Operates 24/7, 365 days a year, with no demand-side flexibility
