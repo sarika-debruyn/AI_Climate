@@ -1,51 +1,57 @@
-# === forecast.py — Generates 2024 Forecasts for Baseline, NGBoost, and TabPFN Models ===
+# === Forecast Pipeline for All Models ===
 import pandas as pd
+import numpy as np
 from pathlib import Path
+from datetime import datetime, timedelta
 
-# === Config ===
-forecast_start = "2024-01-01 00:00"
-forecast_end = "2024-12-31 23:00"
-forecast_timestamps = pd.date_range(forecast_start, forecast_end, freq="H")
-output_dir = Path("../results")
-output_dir.mkdir(parents=True, exist_ok=True)
+# === Paths ===
+MODEL_RESULTS_DIR = Path("../model_results")
+FORECAST_RESULTS_DIR = Path("../forecast_results")
+FORECAST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# === Shared Constants ===
-PANEL_AREA = 1.6
-EFFICIENCY_BASE = 0.20
-AIR_DENSITY = 1.121
-ROTOR_AREA = 1.6
+# === Generate Future Forecast Timestamps ===
+def generate_forecast_timestamps(start="2024-01-01", end="2024-12-31 23:00"):
+    return pd.date_range(start=start, end=end, freq="H")
 
-# === Helper to Load Climatology ===
-def load_climatology(file_path):
-    df = pd.read_csv(file_path)
-    df.columns = df.columns.str.lower()
-    return df
-
-# === Generate Baseline Forecast for Solar ===
-def generate_solar_baseline():
-    df = pd.DataFrame({"datetime": forecast_timestamps})
+# === Solar Baseline Forecast ===
+def forecast_solar_baseline():
+    print("🌞 Forecasting: Solar Baseline")
+    climatology = pd.read_csv(MODEL_RESULTS_DIR / "solar_climatology.csv")
+    timestamps = generate_forecast_timestamps()
+    df = pd.DataFrame({"datetime": timestamps})
     df["month"] = df["datetime"].dt.month
     df["hour"] = df["datetime"].dt.hour
 
-    climatology = load_climatology("../shared/climatology/solar_climatology.csv")
-    df = pd.merge(df, climatology, on=["month", "hour"], how="left")
-    df["solar_power_mw"] = (df["ghi_climatology"] * PANEL_AREA * EFFICIENCY_BASE) / 1000
-    df[["datetime", "solar_power_mw"]].to_csv(output_dir / "solar_baseline_forecast.csv", index=False)
-    print("✅ Saved solar_baseline_forecast.csv")
+    df = df.merge(climatology, on=["month", "hour"], how="left")
+    PANEL_AREA = 1.6
+    EFFICIENCY = 0.20
+    df["solar_power_mw"] = (df["GHI_climatology"] * PANEL_AREA * EFFICIENCY) / 1000
+    df = df[["datetime", "solar_power_mw"]].dropna()
 
-# === Generate Baseline Forecast for Wind ===
-def generate_wind_baseline():
-    df = pd.DataFrame({"datetime": forecast_timestamps})
+    df.to_csv(FORECAST_RESULTS_DIR / "solar_baseline_forecast.csv", index=False)
+    print("✅ Saved to forecast_results/solar_baseline_forecast.csv")
+
+# === Wind Baseline Forecast ===
+def forecast_wind_baseline():
+    print("🌬️ Forecasting: Wind Baseline")
+    climatology = pd.read_csv(MODEL_RESULTS_DIR / "wind_climatology.csv")
+    timestamps = generate_forecast_timestamps()
+    df = pd.DataFrame({"datetime": timestamps})
     df["month"] = df["datetime"].dt.month
     df["hour"] = df["datetime"].dt.hour
 
-    climatology = load_climatology("../shared/climatology/wind_climatology.csv")
-    df = pd.merge(df, climatology, on=["month", "hour"], how="left")
-    df[["datetime", "wind_power_climatology"]].rename(columns={"wind_power_climatology": "wind_power_mw"}).to_csv(
-        output_dir / "wind_baseline_forecast.csv", index=False
-    )
-    print("✅ Saved wind_baseline_forecast.csv")
+    df = df.merge(climatology, on=["month", "hour"], how="left")
+    df["wind_power_mw"] = df["WindPower_climatology"] / 1e6
+    df = df[["datetime", "wind_power_mw"]].dropna()
+
+    df.to_csv(FORECAST_RESULTS_DIR / "wind_baseline_forecast.csv", index=False)
+    print("✅ Saved to forecast_results/wind_baseline_forecast.csv")
+
+# === Run All Forecasts ===
+def main():
+    forecast_solar_baseline()
+    forecast_wind_baseline()
+    # TODO: Add NGBoost and TabPFN model forecasts later
 
 if __name__ == "__main__":
-    generate_solar_baseline()
-    generate_wind_baseline()
+    main()
