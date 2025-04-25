@@ -44,10 +44,12 @@ Idealing want high ROI
 
 3. Training and testing
   a. Use 2018-2021 train and 2022-2023 test for baseline model
-  b. Use TimeSeriesSplit for NGBoost--> simulates how the model would perform in rolling time windows
+  b. NGBoost
+      i. Use TimeSeriesSplit
+      ii. Use bayesian optimization for tuning
   c. TabPFN is pretrained with neural networks via meta-learning so it doesn't need hyperparameter tuning
 
-4. Evalution:
+5. Evalution:
    a. Use 2024 weather data then apply same equations to compute power output
    b. Compute MAE, RMSE
 
