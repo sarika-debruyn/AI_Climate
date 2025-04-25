@@ -12,7 +12,6 @@ We need to choose the USA cities that isolate solar and wind as dominant energy 
 3. **Wind energy:** Mount Storm, West Virginia, was selected as the wind-dominant site for this study due to its strong, consistent wind resources and existing large-scale wind energy infrastructure. It is home to the Mount Storm Wind Farm, a 264 MW facility consisting of 132 turbines spread across 12 miles [3]. This makes it one of the largest wind energy installations in the eastern United States. According to the National Renewable Energy Laboratory (NREL), the region experiences average wind speeds of 7.5 to 8.5 m/s at 100 meters above ground level—well above the threshold for utility-scale wind generation [4]. Furthermore, the site is integrated into the Eastern Interconnection grid, ensuring transmission access and operational relevance. Its combination of real-world deployment, strong wind resource, and available historical weather data makes Mount Storm an ideal case study for evaluating the effectiveness of machine learning-based wind forecasting in renewable-powered data center planning.
 
 ### Data center characteristics:
-We are testing for forecast variability so we need to isolate for other variables.
 1. The data center has a dynamic demand. We use the following time-varying model:
    D(t) = (C + Vc X h(t) x d(t) x s(t)) x ϵ(t)
    D(t): demand at time t (MW)
@@ -26,7 +25,7 @@ We are testing for forecast variability so we need to isolate for other variable
    * We model seasonal variation in data center demand using multipliers of $s(t) = 1.1$ for summer, $0.95$ for winter, and $1.0$ for spring and fall, based on the observed increase in cooling-related energy use reported by Shehabi et al. (8). To represent random variation in demand, we include a noise term $\epsilon(t) \sim \mathcal{N}(1.0, 0.05)$, following the forecast uncertainty range suggested by Qiu et al. (9).
 
    
-3. Operates 24/7, 365 days a year, with no demand-side flexibility
+3. Operates 24/7, 365 days a year
 4. All electricity is intended to be supplied by on-site renewable infrastructure 
 5. When renewable output is insufficient, the center draws from the local power grid.
 
