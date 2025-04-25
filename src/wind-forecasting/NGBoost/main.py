@@ -4,21 +4,26 @@ from pathlib import Path
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 import os
 import warnings
 
 # === Constants ===
-AIR_DENSITY = 1.121  # kg/m³
+AIR_DENSITY = 1.121  # kg/m^3
 TURBINE_RADIUS = 50  # meters (for 100m diameter)
-SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # ~7,850 m²
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # Area swept by turbine blades
 EFFICIENCY = 0.40
-TURBINE_COUNT = 16  # 2.5 MW * 16 = 40 MW total
+TURBINE_COUNT = 16  # 16 turbines x 2.5 MW = 40 MW farm
 
 # === Forecast Horizon ===
 FORECAST_START = "2024-01-01"
 FORECAST_END = "2024-12-31 23:00"
+
+# === Feature Columns ===
+FEATURE_COLUMNS = [
+    'sin_hour', 'cos_hour', 'dayofyear',
+    'Temperature', 'Pressure', 'Relative Humidity', 'Dew Point', 'is_clear'
+]
 
 # === Load Wind Data ===
 def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
@@ -30,10 +35,10 @@ def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
     df.dropna(subset=['Wind Speed'], inplace=True)
     return df.set_index('datetime').sort_index()
 
-# === Convert Wind Speed to Total Wind Farm Power (kW) ===
+# === Convert Wind Speed to Wind Farm Power (MW) ===
 def wind_speed_to_power(wind_speed):
     coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
-    return coeff * (wind_speed ** 3) / 1000  # in kW
+    return coeff * (wind_speed ** 3) / 1_000_000  # Convert W to MW
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -43,8 +48,7 @@ def prepare_features(df):
     df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
     df['is_clear'] = (df['Cloud Type'] == 0).astype(int)
 
-    features = df[['sin_hour', 'cos_hour', 'dayofyear',
-                   'Temperature', 'Pressure', 'Relative Humidity', 'Dew Point', 'is_clear']]
+    features = df[FEATURE_COLUMNS]
     target = wind_speed_to_power(df['Wind Speed'])
     return features, target
 
@@ -56,7 +60,7 @@ def generate_2024_features():
     df['dayofyear'] = df['datetime'].dt.dayofyear
     df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
-    df['is_clear'] = 1
+    df['is_clear'] = 1  # Assume clear skies for synthetic forecast
     df['Temperature'] = 10 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
     df['Pressure'] = 1013
     df['Relative Humidity'] = 50
@@ -65,14 +69,30 @@ def generate_2024_features():
 
 # === Train and Forecast ===
 def train_and_forecast(X_train, y_train, X_forecast):
-    model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False)
+    # Standardize inputs
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_forecast_scaled = scaler.transform(X_forecast)
+
+    # Train NGBoost with OPTUNA-best hyperparameters
+    model = NGBRegressor(
+        Dist=Normal,
+        Score=MLE,
+        n_estimators=974,
+        learning_rate=0.005033831940367311,
+        minibatch_frac=0.7250131521261318,
+        natural_gradient=True,
+        verbose=True
+    )
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        model.fit(X_train, y_train)
-        y_forecast = model.predict(X_forecast)
+        model.fit(X_train_scaled, y_train)
+        y_forecast = model.predict(X_forecast_scaled)
+
     return y_forecast
 
-# === Main ===
+# === Main Script ===
 def main():
     print("Loading wind data...")
     df = load_wind_data()
@@ -80,19 +100,21 @@ def main():
 
     print("Generating synthetic 2024 features...")
     df_forecast = generate_2024_features()
-    X_forecast = df_forecast
+    X_forecast = df_forecast[FEATURE_COLUMNS]
 
     print("Training and forecasting 2024...")
     y_pred = train_and_forecast(X_train, y_train, X_forecast)
+
     forecast_df = pd.DataFrame({
         'datetime': df_forecast.index,
-        'wind_power_mw': y_pred / 1000  # convert kW to MW for the full farm
+        'wind_power_mw': y_pred
     })
 
     print("Saving forecast results...")
-    os.makedirs("../../model_results", exist_ok=True)
-    forecast_df.to_csv("../../model_results/wind_ngboost_eval_forecast.csv", index=False)
-    print("✅ Wind NGBoost 2024 forecast saved to model_results.")
+    output_dir = Path("../../model_results")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    forecast_df.to_csv(output_dir / "wind_ngboost_eval_forecast.csv", index=False)
+    print(" Wind NGBoost 2024 forecast saved to model_results.")
 
 if __name__ == "__main__":
     main()
