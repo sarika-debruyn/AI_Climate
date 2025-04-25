@@ -21,6 +21,11 @@ if not nc_files:
 datasets = [xr.open_dataset(file) for file in nc_files]
 ds_merged = xr.concat(datasets, dim="time")
 
+# After merging the datasets
+print("Available variables:")
+print(ds_merged.data_vars.keys())
+
+
 # === EXTRACT DATA ===
 ghi = ds_merged['ssrd']  # Surface solar radiation downward [J/m²]
 temp = ds_merged['t2m']  # 2m temperature [K]
