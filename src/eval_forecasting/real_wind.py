@@ -34,7 +34,7 @@ time_flat = np.tile(valid_time.values, 3)  # Match the shape of u/v
 
 # === Compute wind speed & power
 wind_speed = np.sqrt(u_flat**2 + v_flat**2)
-wind_power_kw = 0.5 * air_density * rotor_area * wind_speed**3 / 1000
+wind_power_mw = 0.5 * air_density * rotor_area * wind_speed**3 / 1_000_000
 
 # === Handle timestamps
 timestamps_utc = pd.to_datetime(time_flat)
@@ -42,12 +42,12 @@ timestamps_local = timestamps_utc + pd.to_timedelta(timezone_offset, unit='h')
 
 # === Create final DataFrame
 df = pd.DataFrame({
-    'timestamp_utc': timestamps_utc,
+    'datetime': timestamps_utc,
     'timestamp_local': timestamps_local,
-    'wind_power_kw': wind_power_kw
+    'wind_power_mw': wind_power_mw
 })
 
 # === Sort and save
-df = df.sort_values('timestamp_utc').reset_index(drop=True)
+df = df.sort_values('datetime').reset_index(drop=True)
 df.to_csv("wind_power_2024.csv", index=False)
 print("Saved to wind_power_2024.csv")
