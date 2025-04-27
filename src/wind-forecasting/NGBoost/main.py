@@ -10,10 +10,10 @@ import warnings
 
 # === Constants ===
 AIR_DENSITY = 1.121  # kg/m^3
-TURBINE_RADIUS = 50  # meters (for 100m diameter)
-SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # Area swept by turbine blades
+TURBINE_RADIUS = 50  # meters (100m diameter)
+SWEEP_AREA = np.pi * TURBINE_RADIUS**2
 EFFICIENCY = 0.40
-TURBINE_COUNT = 16  # 16 turbines x 2.5 MW = 40 MW farm
+TURBINE_COUNT = 16
 
 # === Forecast Horizon ===
 FORECAST_START = "2024-01-01"
@@ -35,7 +35,7 @@ def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
     df.dropna(subset=['Wind Speed'], inplace=True)
     return df.set_index('datetime').sort_index()
 
-# === Convert Wind Speed to Wind Farm Power (MW) ===
+# === Convert Wind Speed to Power (MW) ===
 def wind_speed_to_power(wind_speed):
     coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
     return coeff * (wind_speed ** 3) / 1_000_000  # Convert W to MW
@@ -49,48 +49,64 @@ def prepare_features(df):
     df['is_clear'] = (df['Cloud Type'] == 0).astype(int)
 
     features = df[FEATURE_COLUMNS]
-    target = wind_speed_to_power(df['Wind Speed'])
+    target = df['Wind Speed']  # Train to predict wind speed (m/s)
     return features, target
 
 # === Create Synthetic Forecast Features for 2024 ===
 def generate_2024_features():
+    np.random.seed(42)  # <-- Fix randomness for reproducibility
+
     date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
     df = pd.DataFrame({'datetime': date_range})
+
+    # Time features
     df['hour'] = df['datetime'].dt.hour
     df['dayofyear'] = df['datetime'].dt.dayofyear
     df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
-    df['is_clear'] = 1  # Assume clear skies for synthetic forecast
-    df['Temperature'] = 10 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
-    df['Pressure'] = 1013
-    df['Relative Humidity'] = 50
-    df['Dew Point'] = 5
+    df['is_clear'] = 1  # Assume mostly clear skies (can randomize later if you want)
+
+    # Temperature: smooth seasonal + random daily noise
+    base_temp = 10 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
+    temp_noise = np.random.normal(0, 2, size=len(df))  # ±2°C daily variability
+    df['Temperature'] = base_temp + temp_noise
+
+    # Pressure: around 1013 hPa ± small Gaussian noise
+    df['Pressure'] = 1013 + np.random.normal(0, 5, size=len(df))  # ±5 hPa
+
+    # Relative Humidity: higher in winter, lower in summer + noise
+    base_rh = 60 - 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)  # Higher RH in winter
+    rh_noise = np.random.normal(0, 5, size=len(df))  # ±5% RH
+    df['Relative Humidity'] = np.clip(base_rh + rh_noise, 20, 100)
+
+    # Dew Point: rough function of Temperature and RH
+    df['Dew Point'] = df['Temperature'] - (100 - df['Relative Humidity']) / 5
+
     return df.set_index('datetime')
+
 
 # === Train and Forecast ===
 def train_and_forecast(X_train, y_train, X_forecast):
-    # Standardize inputs
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_forecast_scaled = scaler.transform(X_forecast)
 
-    # Train NGBoost with OPTUNA-best hyperparameters
     model = NGBRegressor(
         Dist=Normal,
         Score=MLE,
-        n_estimators=974,
-        learning_rate=0.005033831940367311,
-        minibatch_frac=0.7250131521261318,
-        natural_gradient=True,
+        n_estimators=554,
+        learning_rate=0.007570378451818388,
+        minibatch_frac=0.8833521787897562,
+        natural_gradient=False,
         verbose=True
     )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         model.fit(X_train_scaled, y_train)
-        y_forecast = model.predict(X_forecast_scaled)
+        wind_speed_forecast = model.predict(X_forecast_scaled)
 
-    return y_forecast
+    return wind_speed_forecast
 
 # === Main Script ===
 def main():
@@ -102,19 +118,22 @@ def main():
     df_forecast = generate_2024_features()
     X_forecast = df_forecast[FEATURE_COLUMNS]
 
-    print("Training and forecasting 2024...")
-    y_pred = train_and_forecast(X_train, y_train, X_forecast)
+    print("Training and forecasting wind speed for 2024...")
+    wind_speed_pred = train_and_forecast(X_train, y_train, X_forecast)
+
+    print("Converting predicted wind speed to power output...")
+    wind_power_pred = wind_speed_to_power(wind_speed_pred)
 
     forecast_df = pd.DataFrame({
         'datetime': df_forecast.index,
-        'wind_power_mw': y_pred
+        'wind_power_mw': wind_power_pred
     })
 
     print("Saving forecast results...")
     output_dir = Path("../../model_results")
     output_dir.mkdir(parents=True, exist_ok=True)
     forecast_df.to_csv(output_dir / "wind_ngboost_eval_forecast.csv", index=False)
-    print(" Wind NGBoost 2024 forecast saved to model_results.")
+    print("Wind NGBoost 2024 forecast saved to model_results.")
 
 if __name__ == "__main__":
     main()

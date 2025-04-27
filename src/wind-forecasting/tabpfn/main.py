@@ -113,7 +113,7 @@ def main():
     os.makedirs("model_results", exist_ok=True)
     forecast_df.to_csv("model_results/wind_tabpfn_eval_forecast.csv", index=False)
 
-    print("✅ Wind TabPFN 2024 forecast saved to model_results.")
+    print("Wind TabPFN 2024 forecast saved to model_results.")
 
 if __name__ == "__main__":
     main()

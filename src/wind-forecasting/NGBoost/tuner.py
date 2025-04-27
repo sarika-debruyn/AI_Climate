@@ -1,4 +1,4 @@
-# Use Baysian Optimization for tuning
+# Bayesian Optimization for Hyperparameter Tuning
 
 import optuna
 from ngboost import NGBRegressor
@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error
 import pandas as pd
 
-from main import load_wind_data, prepare_features, generate_2024_features, FEATURE_COLUMNS
+from main import load_wind_data, prepare_features, generate_2024_features, FEATURE_COLUMNS, wind_speed_to_power
 
 # === Load and prep your data ===
 df = load_wind_data()
@@ -21,7 +21,6 @@ X_train_scaled = scaler.fit_transform(X_train)
 X_forecast_scaled = scaler.transform(X_forecast)
 
 def objective(trial):
-    # Define search space
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 300, 1500),
         "learning_rate": trial.suggest_float("learning_rate", 0.005, 0.05, log=True),
@@ -31,18 +30,18 @@ def objective(trial):
 
     model = NGBRegressor(Dist=Normal, Score=MLE, verbose=False, **params)
     model.fit(X_train_scaled, y_train)
-    y_pred = model.predict(X_forecast_scaled)
+    wind_speed_pred = model.predict(X_forecast_scaled)
 
-    # Evaluate performance
-    mae = mean_absolute_error(y_pred / 1000, y_train[-len(y_pred):] / 1000)  # MW
+    # Evaluate performance (use MAE between predicted and true wind speed)
+    mae = mean_absolute_error(wind_speed_pred, y_train[-len(wind_speed_pred):])  # m/s
 
     return mae
 
 # === Launch optimization ===
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=30)  # Try 30 configurations
+study.optimize(objective, n_trials=30)
 
 # === Best parameters
 print("\n Best parameters found:")
 print(study.best_params)
-print(f" Best MAE: {study.best_value:.4f} MW")
+print(f" Best MAE: {study.best_value:.4f} m/s")
