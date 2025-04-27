@@ -2,9 +2,7 @@ import pandas as pd
 import numpy as np
 import torch
 from pathlib import Path
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from tabpfn import TabPFNRegressor
 import os
 import warnings
@@ -26,7 +24,6 @@ MAX_TABPFN_SAMPLES = 10000
 def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     file_paths = [Path(base_dir) / f"solar_{year}.csv" for year in years]
     missing = [str(p) for p in file_paths if not p.exists()]
-
     if missing:
         raise FileNotFoundError(f"The following files are missing: {missing}")
 
@@ -44,13 +41,13 @@ def add_zenith_angle(df):
     df['zenith'] = solar_position['zenith'].values
     return df
 
-# === Solar Power ===
+# === Solar Power Calculation ===
 def temp_derated_efficiency(temp, base_eff=EFFICIENCY_BASE, gamma=TEMP_COEFF, T_ref=T_REF):
     return base_eff * (1 - gamma * (temp - T_ref))
 
 def ghi_to_power(ghi, temp):
     eff = temp_derated_efficiency(temp)
-    return ghi * TOTAL_FARM_AREA * eff / 1000  # scaled to solar farm output
+    return ghi * TOTAL_FARM_AREA * eff / 1000  # scaled to MW
 
 # === Feature Engineering ===
 def prepare_features(df):
@@ -63,25 +60,26 @@ def prepare_features(df):
 
     features = df[['sin_hour', 'cos_hour', 'dayofyear', 'zenith_norm',
                    'DHI', 'DNI', 'Temperature', 'Relative Humidity', 'Wind Speed', 'is_clear']]
-    target = ghi_to_power(df['GHI'], df['Temperature'])
+    target = df['GHI']  # Train to predict GHI, not power
     return features, target
 
 # === Synthetic Forecast Features ===
 def generate_2024_features():
+    np.random.seed(42)
     date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
     df = pd.DataFrame({'datetime': date_range})
     df['hour'] = df['datetime'].dt.hour
     df['dayofyear'] = df['datetime'].dt.dayofyear
     df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
-    df['zenith'] = 45
+    df['zenith'] = 45 + 15 * np.sin(2 * np.pi * df['dayofyear'] / 365)
     df['zenith_norm'] = df['zenith'] / 90.0
     df['is_clear'] = 1
-    df['DHI'] = 100
-    df['DNI'] = 600
-    df['Temperature'] = 25 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
-    df['Relative Humidity'] = 40
-    df['Wind Speed'] = 3
+    df['DHI'] = 100 + np.random.normal(0, 10, size=len(df))
+    df['DNI'] = 600 + np.random.normal(0, 30, size=len(df))
+    df['Temperature'] = 25 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365) + np.random.normal(0, 2, len(df))
+    df['Relative Humidity'] = np.clip(40 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365) + np.random.normal(0, 5, len(df)), 20, 100)
+    df['Wind Speed'] = 3 + np.random.normal(0, 0.5, size=len(df))
     return df.set_index('datetime')[['sin_hour', 'cos_hour', 'dayofyear', 'zenith_norm',
                                      'DHI', 'DNI', 'Temperature', 'Relative Humidity', 'Wind Speed', 'is_clear']]
 
@@ -109,22 +107,26 @@ def main():
     df = add_zenith_angle(df)
     X_train, y_train = prepare_features(df)
 
-    print("Generating 2024 forecast features...")
+    print("Generating synthetic 2024 forecast features...")
     X_forecast = generate_2024_features()
 
-    print("Training TabPFN and forecasting...")
-    y_pred = train_and_forecast(X_train, y_train, X_forecast)
+    print("Training TabPFN and forecasting GHI...")
+    ghi_pred = train_and_forecast(X_train, y_train, X_forecast)
+
+    print("Converting predicted GHI to solar power output...")
+    temperature_forecast = X_forecast['Temperature'].values
+    solar_power_pred = ghi_to_power(ghi_pred, temperature_forecast)
 
     forecast_df = pd.DataFrame({
         'datetime': X_forecast.index,
-        'solar_power_mw': y_pred / 1000  # convert kW to MW for full solar farm
+        'solar_power_mw': solar_power_pred
     })
 
     print("Saving forecast results...")
     os.makedirs("model_results", exist_ok=True)
     forecast_df.to_csv("model_results/solar_tabpfn_eval_forecast.csv", index=False)
 
-    print("✅ Solar TabPFN 2024 forecast saved to model_results.")
+    print("Solar TabPFN 2024 forecast saved to model_results.")
 
 if __name__ == "__main__":
     main()
