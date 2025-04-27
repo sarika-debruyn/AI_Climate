@@ -94,10 +94,10 @@ def train_and_forecast(X_train, y_train, X_forecast):
     model = NGBRegressor(
         Dist=Normal,
         Score=MLE,
-        n_estimators=554,
-        learning_rate=0.007570378451818388,
-        minibatch_frac=0.8833521787897562,
-        natural_gradient=False,
+        n_estimators=1294,
+        learning_rate=0.026459068629825326,
+        minibatch_frac=0.6050081825736404,
+        natural_gradient=True,
         verbose=True
     )
 

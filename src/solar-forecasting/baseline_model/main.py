@@ -16,7 +16,6 @@ PANEL_AREA = 1.6  # m²
 EFFICIENCY_BASE = 0.20
 TEMP_COEFF = 0.004
 T_REF = 25
-TOTAL_FARM_AREA = 256000  # m² for 40 MW farm
 
 # === Generate 2024 Forecast Timestamps ===
 def generate_forecast_timestamps(start="2024-01-01", end="2024-12-31 23:00"):
@@ -46,7 +45,7 @@ def generate_baseline_forecast(climatology_df):
     df['month'] = df['datetime'].dt.month
     df['hour'] = df['datetime'].dt.hour
     df = df.merge(climatology_df, on=['month', 'hour'], how='left')
-    df['solar_power_mw'] = (df['GHI_climatology'] * TOTAL_FARM_AREA * EFFICIENCY_BASE) / 1000
+    df['solar_power_mw'] = (df['GHI_climatology'] * PANEL_AREA * EFFICIENCY_BASE) / 1000
     return df[['datetime', 'solar_power_mw']].dropna()
 
 # === Main Pipeline ===
