@@ -1,119 +1,133 @@
+import os
 import pandas as pd
 import numpy as np
 import torch
 from pathlib import Path
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_squared_error
 from tabpfn import TabPFNRegressor
-import os
 import warnings
 
-# === Constants ===
-AIR_DENSITY = 1.121  # kg/m³
-TURBINE_RADIUS = 50  # meters (100m diameter)
-SWEEP_AREA = np.pi * TURBINE_RADIUS**2  # ~7,850 m²
-EFFICIENCY = 0.40
-TURBINE_COUNT = 16  # 2.5 MW each x 16 turbines = 40 MW
-FORECAST_START = "2024-01-01"
-FORECAST_END = "2024-12-31 23:00"
-MAX_TABPFN_SAMPLES = 10000
+warnings.filterwarnings("ignore")
 
-# === Load Wind Data ===
-def load_wind_data(base_dir="wind_data", years=range(2018, 2024)):
-    file_paths = [Path(base_dir) / f"wind_{year}.csv" for year in years]
-    dfs = []
-    for path in file_paths:
-        if not path.exists():
-            print(f"Missing: {path}")
-            continue
-        print(f"Loaded: {path}")
-        dfs.append(pd.read_csv(path, skiprows=2))
+# === Constants & Parameters ===
+AIR_DENSITY    = 1.121    # kg/m³
+TURBINE_RADIUS = 50       # m
+SWEEP_AREA     = np.pi * TURBINE_RADIUS**2
+EFFICIENCY     = 0.40
+TURBINE_COUNT  = 16
+MAX_SAMPLES    = 10_000
 
-    if not dfs:
-        raise ValueError("No wind CSVs were loaded. Check paths or uploads.")
-    df = pd.concat(dfs, ignore_index=True)
-    df['datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour', 'Minute']])
-    for col in ['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure', 'Cloud Type', 'Dew Point']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    df.dropna(subset=['Wind Speed'], inplace=True)
-    return df.set_index('datetime').sort_index()
+# Cross-validation on 2018–2022, test on 2023
+CV_YEARS       = list(range(2018, 2023))  # [2018,2019,2020,2021,2022]
+TEST_YEAR      = 2023
+HOURS_PER_YEAR = 24 * 365
 
-# === Wind Power Estimation (kW) ===
-def wind_speed_to_power(wind_speed):
-    coeff = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
-    return coeff * (wind_speed ** 3) / 1000
+# === Helper Functions ===
+def wind_to_power(ws):
+    coef = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
+    return coef * (ws ** 3) / 1000  # kW
 
-# === Feature Engineering ===
-def prepare_features(df):
-    df['hour'] = df.index.hour
-    df['dayofyear'] = df.index.dayofyear
-    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
-    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
+def make_features(df):
+    df = df.copy()
+    df['power_kW'] = wind_to_power(df['Wind Speed'])
+    # time features
+    df['sin_h']    = np.sin(2 * np.pi * df.index.hour / 24)
+    df['cos_h']    = np.cos(2 * np.pi * df.index.hour / 24)
+    df['doy']      = df.index.dayofyear
     df['is_clear'] = (df['Cloud Type'] == 0).astype(int)
+    # lags & rolling stats
+    for lag in (1, 24, 168):
+        df[f'lag_{lag}'] = df['power_kW'].shift(lag)
+    df['roll24_mean'] = df['power_kW'].rolling(24).mean().shift(1)
+    df['roll24_std']  = df['power_kW'].rolling(24).std().shift(1)
+    # drop NaNs
+    feat_cols = [
+        'Wind Speed','Temperature','Relative Humidity','Pressure','Dew Point',
+        'sin_h','cos_h','doy','is_clear',
+        'lag_1','lag_24','lag_168','roll24_mean','roll24_std'
+    ]
+    df = df.dropna(subset=feat_cols + ['power_kW'])
+    return df[feat_cols], df['power_kW']
 
-    features = df[['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure',
-                   'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear', 'is_clear']]
-    target = wind_speed_to_power(df['Wind Speed'])
-    return features, target
+def load_wind_data(base_dir="wind_data"):
+    parts = []
+    for year in range(2018, TEST_YEAR + 1):
+        path = Path(base_dir) / f"wind_{year}.csv"
+        if not path.exists():
+            raise FileNotFoundError(f"Missing file: {path}")
+        df = (pd.read_csv(path, skiprows=2)
+                .assign(datetime=lambda d: pd.to_datetime(
+                    dict(year=d.Year, month=d.Month, day=d.Day,
+                         hour=d.Hour, minute=d.Minute)
+                ))
+                .set_index("datetime"))
+        parts.append(df[['Wind Speed','Temperature','Relative Humidity',
+                         'Pressure','Cloud Type','Dew Point']].apply(pd.to_numeric, errors='coerce'))
+    df = pd.concat(parts).sort_index().dropna(subset=['Wind Speed'])
+    return df
 
-# === Synthetic 2024 Forecast Features ===
-def generate_2024_features():
-    date_range = pd.date_range(start=FORECAST_START, end=FORECAST_END, freq='h')
-    df = pd.DataFrame({'datetime': date_range})
-    df['hour'] = df['datetime'].dt.hour
-    df['dayofyear'] = df['datetime'].dt.dayofyear
-    df['sin_hour'] = np.sin(2 * np.pi * df['hour'] / 24)
-    df['cos_hour'] = np.cos(2 * np.pi * df['hour'] / 24)
-    df['is_clear'] = 1
-    df['Wind Speed'] = 3
-    df['Temperature'] = 15 + 10 * np.sin(2 * np.pi * df['dayofyear'] / 365)
-    df['Relative Humidity'] = 60
-    df['Pressure'] = 1013
-    df['Dew Point'] = 10
-
-    return df.set_index('datetime')[['Wind Speed', 'Temperature', 'Relative Humidity', 'Pressure',
-                                     'Dew Point', 'cos_hour', 'sin_hour', 'dayofyear', 'is_clear']]
-
-# === Train & Forecast ===
-def train_and_forecast(X_train, y_train, X_forecast):
-    if len(X_train) > MAX_TABPFN_SAMPLES:
-        sampled_idx = np.random.choice(len(X_train), size=MAX_TABPFN_SAMPLES, replace=False)
-        X_train = X_train.iloc[sampled_idx]
-        y_train = y_train.iloc[sampled_idx]
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_forecast_scaled = scaler.transform(X_forecast)
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = TabPFNRegressor(device=device)
-    model.fit(X_train_scaled, y_train)
-    y_forecast = model.predict(X_forecast_scaled)
-    return y_forecast
-
-# === Main ===
+# === Main Pipeline ===
 def main():
-    print("Loading wind data...")
-    df = load_wind_data()
-    X_train, y_train = prepare_features(df)
-
-    print("Generating 2024 forecast features...")
-    X_forecast = generate_2024_features()
-
-    print("Training TabPFN and forecasting...")
-    y_pred = train_and_forecast(X_train, y_train, X_forecast)
-
-    forecast_df = pd.DataFrame({
-        'datetime': X_forecast.index,
-        'wind_power_mw': y_pred / 1000  # convert kW to MW
-    })
-
-    print("Saving forecast results...")
     os.makedirs("model_results", exist_ok=True)
-    forecast_df.to_csv("model_results/wind_tabpfn_eval_forecast.csv", index=False)
 
-    print("Wind TabPFN 2024 forecast saved to model_results.")
+    # 1. Load & feature-engineer
+    df = load_wind_data()
+    X_all, y_all = make_features(df)
+
+    # 2. Split CV vs. final test
+    mask_cv   = X_all.index.year.isin(CV_YEARS)
+    mask_test = X_all.index.year == TEST_YEAR
+
+    X_cv, y_cv     = X_all.loc[mask_cv], y_all.loc[mask_cv]
+    X_test, y_test = X_all.loc[mask_test], y_all.loc[mask_test]
+
+    # 3. Cross-validation (2018–2022)
+    tscv = TimeSeriesSplit(n_splits=len(CV_YEARS)-1, test_size=HOURS_PER_YEAR)
+    cv_records = []
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    for fold, (train_idx, val_idx) in enumerate(tscv.split(X_cv), start=1):
+        X_tr, y_tr = X_cv.iloc[train_idx], y_cv.iloc[train_idx]
+        X_va, y_va = X_cv.iloc[val_idx], y_cv.iloc[val_idx]
+
+        # subsample if dataset is large
+        if len(X_tr) > MAX_SAMPLES:
+            sel = np.random.choice(len(X_tr), MAX_SAMPLES, replace=False)
+            X_tr, y_tr = X_tr.iloc[sel], y_tr.iloc[sel]
+
+        # train & predict
+        model = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
+        model.fit(X_tr, y_tr)
+        y_pred = model.predict(X_va)
+
+        # record RMSE
+        rmse = mean_squared_error(y_va, y_pred, squared=False)
+        print(f"Fold {fold} RMSE (kW): {rmse:.2f}")
+        cv_records.append({'fold': fold, 'rmse_kW': rmse})
+
+    pd.DataFrame(cv_records).to_csv("model_results/wind_tabpfn_cv.csv", index=False)
+
+    # 4. Final train on 2018–2022, test on 2023
+    model_final = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
+    model_final.fit(X_cv, y_cv)
+
+    y_test_pred = model_final.predict(X_test)
+    rmse_test   = mean_squared_error(y_test, y_test_pred, squared=False)
+    print(f"\n2023 Hold-out RMSE (kW): {rmse_test:.2f}")
+
+    # save hold-out RMSE
+    pd.DataFrame([{'year': TEST_YEAR, 'rmse_kW': rmse_test}]) \
+      .to_csv("model_results/wind_tabpfn_2023_holdout_rmse.csv", index=False)
+
+    # save forecasts for downstream analysis
+    out = pd.DataFrame({
+        'datetime': X_test.index,
+        'power_true_kW': y_test,
+        'power_pred_kW': y_test_pred
+    })
+    out.to_csv("model_results/wind_tabpfn_2023_holdout_forecast.csv", index=False)
+    print("Saved 2023 hold-out forecasts to model_results/wind_tabpfn_2023_holdout_forecast.csv")
 
 if __name__ == "__main__":
     main()
