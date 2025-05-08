@@ -103,7 +103,7 @@ def main():
         model.fit(X_tr, y_tr)
 
         y_pred = model.predict(X_va)
-        rmse   = mean_squared_error(y_va, y_pred, squared=False)
+        rmse   = mean_squared_error(y_va, y_pred)
 
         cv_records.append({"fold": fold, "rmse_GHI": rmse})
         print(f"Fold {fold} RMSE (GHI): {rmse:.2f}")
@@ -115,7 +115,7 @@ def main():
     model_final.fit(X_cv, y_cv)
 
     y_test_pred = model_final.predict(X_test)
-    rmse_test   = mean_squared_error(y_test, y_test_pred, squared=False)
+    rmse_test   = mean_squared_error(y_test, y_test_pred)
     print(f"\n2023 Hold-out RMSE (GHI): {rmse_test:.2f}")
 
     # save hold-out results

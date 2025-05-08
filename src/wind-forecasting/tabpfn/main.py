@@ -50,7 +50,7 @@ def make_features(df):
     df = df.dropna(subset=feat_cols + ['power_kW'])
     return df[feat_cols], df['power_kW']
 
-def load_wind_data(base_dir="wind_data"):
+def load_wind_data(base_dir="../wind_data"):
     parts = []
     for year in range(2018, TEST_YEAR + 1):
         path = Path(base_dir) / f"wind_{year}.csv"
@@ -102,7 +102,7 @@ def main():
         y_pred = model.predict(X_va)
 
         # record RMSE
-        rmse = mean_squared_error(y_va, y_pred, squared=False)
+        rmse = mean_squared_error(y_va, y_pred)
         print(f"Fold {fold} RMSE (kW): {rmse:.2f}")
         cv_records.append({'fold': fold, 'rmse_kW': rmse})
 
@@ -113,7 +113,7 @@ def main():
     model_final.fit(X_cv, y_cv)
 
     y_test_pred = model_final.predict(X_test)
-    rmse_test   = mean_squared_error(y_test, y_test_pred, squared=False)
+    rmse_test   = mean_squared_error(y_test, y_test_pred)
     print(f"\n2023 Hold-out RMSE (kW): {rmse_test:.2f}")
 
     # save hold-out RMSE
