@@ -5,9 +5,9 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 # === CONFIGURATION ===
 truth_file = "wind_power_2024.csv"
 model_files = {
-    "Baseline": "../model_results/wind_baseline_eval_forecast.csv",
-    "NGBoost": "../model_results/wind_ngboost_eval_forecast.csv",
-    "TabPFN": "../model_results/wind_tabpfn_eval_forecast.csv"
+    "Baseline": "../../model_results/wind_baseline_eval_forecast.csv",
+    "NGBoost": "../../model_results/wind_ngboost_eval_forecast.csv",
+    "TabPFN": "../../model_results/wind_tabpfn_eval_forecast.csv"
 }
 
 # === LOAD TRUTH DATA ===

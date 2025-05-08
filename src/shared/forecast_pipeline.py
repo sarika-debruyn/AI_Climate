@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from tabpfn import TabPFNRegressor
 
 # === Paths ===
-MODEL_RESULTS_DIR = Path("../model_results")
+MODEL_RESULTS_DIR = Path("../../model_results")
 FORECAST_RESULTS_DIR = Path("../forecast_results")
 FORECAST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
