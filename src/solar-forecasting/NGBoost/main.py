@@ -90,7 +90,7 @@ def ghi_to_power(ghi, zenith):
 
 # === Main Pipeline ===
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # 1. Load & feature-engineer
     df = load_solar_data()
@@ -139,7 +139,7 @@ def main():
     )
     study.optimize(objective, n_trials=10)
     best_params = study.best_params
-    with open('model_results/solar_ngboost_best_params.json','w') as f:
+    with open('../../model_results/solar_ngboost_best_params.json','w') as f:
         json.dump(best_params, f, indent=2)
 
     # 5. CV with best_params
@@ -151,7 +151,7 @@ def main():
         rmse = mean_squared_error(y_cv.iloc[va], preds)
         cv_log.append({'fold': i, 'rmse_Wm2': rmse})
         print(f"Fold {i} RMSE (W/m²): {rmse:.2f}")
-    pd.DataFrame(cv_log).to_csv('model_results/solar_ngboost_cv.csv', index=False)
+    pd.DataFrame(cv_log).to_csv('../../model_results/solar_ngboost_cv.csv', index=False)
 
     # 6. Final train & hold-out test
     final = NGBRegressor(Dist=Normal, Score=MLE, **best_params)
@@ -160,7 +160,7 @@ def main():
     rmse_test   = mean_squared_error(y_test, y_pred_test)
     print(f"2023 Hold-out RMSE (W/m²): {rmse_test:.2f}")
     pd.DataFrame([{'year': TEST_YEAR, 'rmse_Wm2': rmse_test}]) \
-      .to_csv('model_results/solar_ngboost_holdout_rmse.csv', index=False)
+      .to_csv('../../model_results/solar_ngboost_holdout_rmse.csv', index=False)
 
     # 7. Save hold-out forecasts + power
     out = pd.DataFrame({
@@ -170,7 +170,7 @@ def main():
         'power_true_MW':  ghi_to_power(y_test.values, df.loc[y_test.index,'zenith']),
         'power_pred_MW':  ghi_to_power(y_pred_test, df.loc[y_test.index,'zenith'])
     })
-    out.to_csv('model_results/solar_ngboost_holdout_forecast.csv', index=False)
+    out.to_csv('../../model_results/solar_ngboost_holdout_forecast.csv', index=False)
     print("All NGBoost solar results saved under model_results/")
 
 if __name__ == '__main__':

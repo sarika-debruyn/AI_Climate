@@ -43,7 +43,7 @@ def wind_speed_to_power(ws):
 # --- Main Script ---
 
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # Load 2018–2023 data
     df = load_wind_data()
@@ -69,13 +69,13 @@ def main():
         'power_pred_MW':  power_pred
     })
     out.index.name = 'datetime'
-    out.to_csv("model_results/wind_perfect_2023_forecast.csv")
+    out.to_csv("../../model_results/wind_perfect_2023_forecast.csv")
 
     # Save RMSE
     pd.DataFrame([
         {'metric':'RMSE_WS_m_s',    'value':rmse_ws},
         {'metric':'RMSE_power_MW',  'value':rmse_pw}
-    ]).to_csv("model_results/wind_perfect_2023_rmse.csv", index=False)
+    ]).to_csv("../../model_results/wind_perfect_2023_rmse.csv", index=False)
 
     print("Wind perfect-foresight baseline saved.")
 

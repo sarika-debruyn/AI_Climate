@@ -67,7 +67,7 @@ def wind_speed_to_power(ws):
 
 # === Main ===
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # 1. Load & feature-engineer
     df = load_wind_data()
@@ -111,7 +111,7 @@ def main():
     )
     study.optimize(objective, n_trials=10)
     best_params = study.best_params
-    with open('model_results/wind_ngboost_best_params.json','w') as f:
+    with open('../../model_results/wind_ngboost_best_params.json','w') as f:
         json.dump(best_params, f, indent=2)
 
     # 5. CV with best_params
@@ -126,7 +126,7 @@ def main():
         cv_records.append({'fold': fold_idx, 'rmse_m_s': rmse})
         print(f"Fold {fold_idx} RMSE (m/s): {rmse:.3f}")
     pd.DataFrame(cv_records).to_csv(
-        'model_results/wind_ngboost_cv.csv', index=False
+        '../../model_results/wind_ngboost_cv.csv', index=False
     )
 
     # 6. Final train on 2018–2022 & hold-out test on 2023
@@ -136,7 +136,7 @@ def main():
     rmse_test   = mean_squared_error(y_test, y_test_pred)
     print(f"2023 Hold-out RMSE (m/s): {rmse_test:.3f}")
     pd.DataFrame([{'year': TEST_YEAR, 'rmse_m_s': rmse_test}]).to_csv(
-        'model_results/wind_ngboost_holdout_rmse.csv', index=False
+        '../../model_results/wind_ngboost_holdout_rmse.csv', index=False
     )
 
     # 7. Save hold-out forecasts and power
@@ -147,7 +147,7 @@ def main():
     })
     df_out['power_true_MW'] = wind_speed_to_power(df_out['speed_true_m_s'])
     df_out['power_pred_MW'] = wind_speed_to_power(df_out['speed_pred_m_s'])
-    df_out.to_csv('model_results/wind_ngboost_holdout_forecast.csv', index=False)
+    df_out.to_csv('../../model_results/wind_ngboost_holdout_forecast.csv', index=False)
     print("All NGBoost results saved under model_results/")
 
 if __name__ == '__main__':

@@ -47,24 +47,24 @@ def evaluate_models(baseline_path, ngboost_path, tabpfn_path, title, save_name):
         plt.text(bar.get_x() + bar.get_width()/2, yval + 0.01, f"{yval:.2f}", ha='center', va='bottom')
 
     plt.tight_layout()
-    plt.savefig(f"../model_results/{save_name}.png")  # Save the plot
+    plt.savefig(f"../../model_results/{save_name}.png")  # Save the plot
     plt.show()
 
 def main():
     print("\n===== Evaluating Wind Forecasts =====")
     evaluate_models(
-        baseline_path="../model_results/wind_baseline_eval_forecast.csv",
-        ngboost_path="../model_results/wind_ngboost_eval_forecast.csv",
-        tabpfn_path="../model_results/wind_tabpfn_eval_forecast.csv",
+        baseline_path="../../model_results/wind_baseline_eval_forecast.csv",
+        ngboost_path="../../model_results/wind_ngboost_eval_forecast.csv",
+        tabpfn_path="../../model_results/wind_tabpfn_eval_forecast.csv",
         title="Wind Forecasts",
         save_name="wind_model_comparison"
     )
 
     print("\n===== Evaluating Solar Forecasts =====")
     evaluate_models(
-        baseline_path="../model_results/solar_baseline_eval_forecast.csv",
-        ngboost_path="../model_results/solar_ngboost_eval_forecast.csv",
-        tabpfn_path="../model_results/solar_tabpfn_eval_forecast.csv",
+        baseline_path="../../model_results/solar_baseline_eval_forecast.csv",
+        ngboost_path="../../model_results/solar_ngboost_eval_forecast.csv",
+        tabpfn_path="../../model_results/solar_tabpfn_eval_forecast.csv",
         title="Solar Forecasts",
         save_name="solar_model_comparison"
     )

@@ -40,7 +40,7 @@ def ghi_to_power(ghi):
 # --- Main Script ---
 
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # Load 2018–2023 data
     df = load_solar_data()
@@ -66,13 +66,13 @@ def main():
         'power_pred_MW': power_pred
     })
     out.index.name = 'datetime'
-    out.to_csv("model_results/solar_perfect_2023_forecast.csv")
+    out.to_csv("../../model_results/solar_perfect_2023_forecast.csv")
 
     # Save RMSE
     pd.DataFrame([
         {'metric':'RMSE_GHI',         'value':rmse_ghi},
         {'metric':'RMSE_power_MW',    'value':rmse_pw}
-    ]).to_csv("model_results/solar_perfect_2023_rmse.csv", index=False)
+    ]).to_csv("../../model_results/solar_perfect_2023_rmse.csv", index=False)
 
     print("Solar perfect-foresight baseline saved.")
 

@@ -69,7 +69,7 @@ def load_wind_data(base_dir="../wind_data"):
 
 # === Main Pipeline ===
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # 1. Load & feature-engineer
     df = load_wind_data()
@@ -106,7 +106,7 @@ def main():
         print(f"Fold {fold} RMSE (kW): {rmse:.2f}")
         cv_records.append({'fold': fold, 'rmse_kW': rmse})
 
-    pd.DataFrame(cv_records).to_csv("model_results/wind_tabpfn_cv.csv", index=False)
+    pd.DataFrame(cv_records).to_csv("../../model_results/wind_tabpfn_cv.csv", index=False)
 
     # 4. Final train on 2018–2022, test on 2023
     model_final = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
@@ -118,7 +118,7 @@ def main():
 
     # save hold-out RMSE
     pd.DataFrame([{'year': TEST_YEAR, 'rmse_kW': rmse_test}]) \
-      .to_csv("model_results/wind_tabpfn_2023_holdout_rmse.csv", index=False)
+      .to_csv("../../model_results/wind_tabpfn_2023_holdout_rmse.csv", index=False)
 
     # save forecasts for downstream analysis
     out = pd.DataFrame({
@@ -126,8 +126,8 @@ def main():
         'power_true_kW': y_test,
         'power_pred_kW': y_test_pred
     })
-    out.to_csv("model_results/wind_tabpfn_2023_holdout_forecast.csv", index=False)
-    print("Saved 2023 hold-out forecasts to model_results/wind_tabpfn_2023_holdout_forecast.csv")
+    out.to_csv("../../model_results/wind_tabpfn_2023_holdout_forecast.csv", index=False)
+    print("Saved 2023 hold-out forecasts to ../../model_results/wind_tabpfn_2023_holdout_forecast.csv")
 
 if __name__ == "__main__":
     main()

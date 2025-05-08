@@ -71,7 +71,7 @@ def ghi_to_power(ghi, temp):
 
 # === Main ===
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    os.makedirs("../../model_results", exist_ok=True)
 
     # 1. Load & prepare
     df  = load_solar_data()
@@ -108,7 +108,7 @@ def main():
         cv_records.append({"fold": fold, "rmse_GHI": rmse})
         print(f"Fold {fold} RMSE (GHI): {rmse:.2f}")
 
-    pd.DataFrame(cv_records).to_csv("model_results/solar_tabpfn_cv.csv", index=False)
+    pd.DataFrame(cv_records).to_csv("../../model_results/solar_tabpfn_cv.csv", index=False)
 
     # 4. Final train on all 2018–2022, test on 2023
     model_final = TabPFNRegressor(device=device)
@@ -120,7 +120,7 @@ def main():
 
     # save hold-out results
     pd.DataFrame([{"year": TEST_YEAR, "rmse_GHI": rmse_test}]) \
-      .to_csv("model_results/solar_tabpfn_2023_holdout_rmse.csv", index=False)
+      .to_csv("../../model_results/solar_tabpfn_2023_holdout_rmse.csv", index=False)
 
     # (Optional) convert hold-out GHI preds to power
     power_true = ghi_to_power(y_test.values, X_test["Temperature"].values)
@@ -132,8 +132,8 @@ def main():
         "power_true_MW": power_true,
         "power_pred_MW": power_pred
     })
-    df_out.to_csv("model_results/solar_tabpfn_2023_holdout_forecast.csv", index=False)
-    print("Saved 2023 hold-out forecasts to model_results/solar_tabpfn_2023_holdout_forecast.csv")
+    df_out.to_csv("../../model_results/solar_tabpfn_2023_holdout_forecast.csv", index=False)
+    print("Saved 2023 hold-out forecasts to ../../model_results/solar_tabpfn_2023_holdout_forecast.csv")
 
 if __name__ == "__main__":
     main()
