@@ -4,7 +4,6 @@ from pathlib import Path
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
-from sklearn.preprocessing import StandardScaler
 import os
 import warnings
 import pvlib
@@ -83,16 +82,13 @@ def generate_2024_features():
 
 # === Train and Forecast ===
 def train_and_forecast(X_train, y_train, X_forecast):
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_forecast_scaled = scaler.transform(X_forecast)
 
     model = NGBRegressor(Dist=Normal, Score=MLE, verbose=True)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        model.fit(X_train_scaled, y_train)
-        ghi_forecast = model.predict(X_forecast_scaled)
+        model.fit(X_train, y_train)
+        ghi_forecast = model.predict(X_forecast)
 
     return ghi_forecast
 
