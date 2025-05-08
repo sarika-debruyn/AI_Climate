@@ -1,16 +1,16 @@
 import pandas as pd
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-# === Load your data ===
-df = pd.read_csv("wind_power_2024.csv", parse_dates=['datetime'])
+df = pd.read_csv("../../model_results/solar/solar_merged_forecasts.csv",
+                 parse_dates=["datetime"], index_col="datetime")
 
-# === Add month and day columns ===
-df['month'] = df['datetime'].dt.month
-df['day'] = df['datetime'].dt.date
+# filter to daylight hours
+day = df[df["perfect"] > 0]
 
-# === Check missing by month ===
-missing_by_month = df.groupby('month')['wind_power_mw'].apply(lambda x: x.isna().sum())
-total_by_month = df.groupby('month')['wind_power_mw'].count() + missing_by_month
-percent_missing_by_month = (missing_by_month / total_by_month * 100).round(2)
-
-print("📊 Missing data by month (%):")
-print(percent_missing_by_month)
+print("Daylight-only metrics:")
+for model in ["climatology","ngboost","tabpfn"]:
+    y_true = day["perfect"]
+    y_pred = day[model]
+    print(f"{model:12s}"
+          f"  RMSE = {mean_squared_error(y_true,y_pred):5.2f} MW"
+          f"  MAE = {mean_absolute_error(y_true,y_pred):5.2f} MW")

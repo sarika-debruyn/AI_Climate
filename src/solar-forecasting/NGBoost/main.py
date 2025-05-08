@@ -13,6 +13,7 @@ from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
 import optuna
+import pvlib
 
 warnings.filterwarnings('ignore')
 
@@ -23,7 +24,7 @@ PANEL_AREA_TOTAL  = 256_000     # m² for 40 MW solar farm
 EFFICIENCY_BASE   = 0.20
 PERFORMANCE_RATIO = 0.8
 
-CV_YEARS         = list(range(2018, 2023))  # use 2018–2022 for CV
+CV_YEARS         = list(range(2018, 2023))  # CV on 2018–22
 TEST_YEAR        = 2023
 HOURS_PER_YEAR   = 24 * 365
 
@@ -35,143 +36,161 @@ def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
         if not p.exists():
             sys.exit(f"Missing file: {p}")
         df = pd.read_csv(p, skiprows=2)
-        df['datetime'] = pd.to_datetime(
-            dict(year=df.Year, month=df.Month, day=df.Day,
-                 hour=df.Hour, minute=df.Minute)
-        )
-        for c in ['GHI','DHI','DNI','Temperature','Wind Speed',
-                  'Relative Humidity','Pressure','Cloud Type','Dew Point']:
-            if c in df:
-                df[c] = pd.to_numeric(df[c], errors='coerce')
-        parts.append(df.set_index('datetime').dropna(subset=['GHI']))
+        df['datetime'] = pd.to_datetime(dict(
+            year=df.Year, month=df.Month, day=df.Day,
+            hour=df.Hour, minute=df.Minute
+        ))
+        for c in ['GHI','DHI','DNI','Temperature','Relative Humidity','Pressure','Cloud Type','Dew Point']:
+            df[c] = pd.to_numeric(df.get(c, np.nan), errors='coerce')
+        df = df.set_index('datetime').dropna(subset=['GHI'])
+        parts.append(df)
     return pd.concat(parts).sort_index()
 
 def compute_zenith(df):
-    phi = np.radians(LATITUDE)
-    doy = df.index.dayofyear.values
-    delta = np.radians(23.44) * np.sin(2*np.pi*(doy + 284)/365)
-    hour = df.index.hour + df.index.minute/60
-    H = np.radians((hour - 12) * 15)
-    cosZ = np.sin(phi)*np.sin(delta) + np.cos(phi)*np.cos(delta)*np.cos(H)
-    cosZ = np.clip(cosZ, -1, 1)
-    return np.degrees(np.arccos(cosZ))
+    solpos = pvlib.solarposition.get_solarposition(
+        time=df.index, latitude=LATITUDE, longitude=LONGITUDE
+    )
+    # take the zenith column, drop its index, coerce to float64
+    return solpos['zenith'].to_numpy(dtype=float)
+
 
 def prepare_features(df):
     df = df.copy()
-    df['zenith'] = compute_zenith(df)
-    # time and weather features
-    df['sin_hour']    = np.sin(2*np.pi * df.index.hour/24)
-    df['cos_hour']    = np.cos(2*np.pi * df.index.hour/24)
-    df['dayofyear']   = df.index.dayofyear
-    df['zenith_norm'] = df['zenith']/90.0
-    df['is_clear']    = (df['Cloud Type']==0).astype(int)
-    # lagged GHI & rolling stats
-    df['ghi_lag_1']       = df['GHI'].shift(1)
-    df['ghi_lag_24']      = df['GHI'].shift(24)
-    df['ghi_lag_168']     = df['GHI'].shift(168)
-    df['ghi_roll24_mean'] = df['GHI'].rolling(24).mean().shift(1)
-    df['ghi_roll24_std']  = df['GHI'].rolling(24).std().shift(1)
-    # select features
+    
+    # time features
+    df['hour']    = df.index.hour
+    df['sin_h1']  = np.sin(2*np.pi * df.hour/24)
+    df['cos_h1']  = np.cos(2*np.pi * df.hour/24)
+    df['doy']     = df.index.dayofyear
+    df['sin_doy'] = np.sin(2*np.pi * df.doy/365)
+    df['cos_doy'] = np.cos(2*np.pi * df.doy/365)
+    
+    # Get solar position
+    solpos = pvlib.solarposition.get_solarposition(df.index, LATITUDE, LONGITUDE)
+    
+    # Clear sky and clearness
+    cs = pvlib.clearsky.ineichen(
+        solpos['apparent_zenith'], 
+        solpos['apparent_elevation'],
+        linke_turbidity=3.0
+    )
+    df['GHI_cs'] = cs['ghi']
+    df['k_t']    = df['GHI'] / (df['GHI_cs'] + 1e-6)
+    
+    # temperature derate
+    df['temp_diff'] = df['Temperature'] - 25
+    df['eff_temp']  = 1 - 0.004 * df['temp_diff']
+    
+    # cloud one-hot
+    for ct in sorted(df['Cloud Type'].unique()):
+        df[f'cloud_{int(ct)}'] = (df['Cloud Type']==ct).astype(int)
+    
+    # lags & rolling stats
+    lags = [1,3,6,24,168]
+    for var in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']:
+        for lag in lags:
+            df[f'{var}_lag{lag}'] = df[var].shift(lag)
+        df[f'{var}_roll24_mean'] = df[var].rolling(24).mean().shift(1)
+        df[f'{var}_roll24_std']  = df[var].rolling(24).std().shift(1)
+    
+    # interaction
+    df['zenith_k_t'] = (solpos['apparent_zenith']/90.0) * df['k_t']
+    
+    # feature list
     feat_cols = [
-        'sin_hour','cos_hour','dayofyear','zenith_norm','is_clear',
-        'DHI','DNI','Temperature','Relative Humidity','Dew Point',
-        'ghi_lag_1','ghi_lag_24','ghi_lag_168',
-        'ghi_roll24_mean','ghi_roll24_std'
-    ]
+        'sin_h1','cos_h1','sin_doy','cos_doy','k_t','eff_temp','zenith_k_t'
+    ] \
+    + [f'cloud_{int(ct)}' for ct in sorted(df['Cloud Type'].unique())] \
+    + [f'{var}_lag{lag}' for var in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point'] for lag in lags] \
+    + [f'{var}_roll24_mean' for var in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']] \
+    + [f'{var}_roll24_std'  for var in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']]
+    
     df = df.dropna(subset=feat_cols + ['GHI'])
     X = df[feat_cols]
     y = df['GHI']
     return X, y
 
 def ghi_to_power(ghi, zenith):
-    perf_corr = np.cos(np.radians(zenith))
-    adj_ghi    = ghi * perf_corr
-    return (adj_ghi * PANEL_AREA_TOTAL * EFFICIENCY_BASE * PERFORMANCE_RATIO) / 1e6  # MW
+    # Force both inputs into float64 NumPy arrays
+    ghi_arr    = np.asarray(ghi, dtype=np.float64)
+    zenith_arr = np.asarray(zenith, dtype=np.float64)
+    # Compute cosine of zenith in radians without calling np.radians
+    perf_corr  = np.cos(zenith_arr * (np.pi / 180.0))
+    return (ghi_arr * perf_corr
+            * PANEL_AREA_TOTAL
+            * EFFICIENCY_BASE
+            * PERFORMANCE_RATIO) / 1e6  # MW
 
 # === Main Pipeline ===
 def main():
-    os.makedirs("../../model_results", exist_ok=True)
+    os.makedirs("../../../model_results", exist_ok=True)
 
-    # 1. Load & feature-engineer
+    # load & features
     df = load_solar_data()
-
-    # 1a. Compute solar zenith and attach to the main DataFrame
-    df['zenith'] = compute_zenith(df)
-
-    # 1b. Feature‐engineering (lags, rolling stats, time features, etc.)
     X_all, y_all = prepare_features(df)
 
-    # 2. Split CV vs. hold-out
-    mask_cv   = X_all.index.year <= 2022
+    # train/test split
+    mask_cv   = X_all.index.year.isin(CV_YEARS)
     mask_test = X_all.index.year == TEST_YEAR
     X_cv, y_cv     = X_all.loc[mask_cv], y_all.loc[mask_cv]
     X_test, y_test = X_all.loc[mask_test], y_all.loc[mask_test]
 
-    # 3. Precompute splits
+    # CV splits
     tscv   = TimeSeriesSplit(n_splits=4, test_size=HOURS_PER_YEAR)
     splits = list(tscv.split(X_cv))
 
-    # 4. Bayesian hyperparameter tuning
+    # hyperparameter tuning
     def objective(trial):
         params = {
-            'n_estimators':   trial.suggest_int('n_estimators', 100, 500),
+            'n_estimators':   trial.suggest_int('n_estimators', 200, 600),
             'learning_rate':  trial.suggest_loguniform('learning_rate', 1e-3, 1e-1),
-            'minibatch_frac': trial.suggest_uniform('minibatch_frac', 0.1, 1.0),
+            'minibatch_frac': trial.suggest_uniform('minibatch_frac', 0.2, 0.8),
             'natural_gradient': True
         }
         rmses = []
-        for idx, (tr, va) in enumerate(splits, start=1):
-            X_tr, y_tr = X_cv.iloc[tr], y_cv.iloc[tr]
-            X_va, y_va = X_cv.iloc[va], y_cv.iloc[va]
-            model = NGBRegressor(Dist=Normal, Score=MLE, **params)
-            model.fit(X_tr, y_tr)
-            preds = model.predict(X_va)
-            rmse = mean_squared_error(y_va, preds)
-            trial.report(rmse, idx)
+        for tr, va in splits:
+            mdl = NGBRegressor(Dist=Normal, Score=MLE, **params)
+            mdl.fit(X_cv.iloc[tr], y_cv.iloc[tr])
+            p = mdl.predict(X_cv.iloc[va])
+            rmses.append(np.sqrt(mean_squared_error(y_cv.iloc[va], p)))
+            trial.report(rmses[-1], len(rmses)-1)
             if trial.should_prune():
                 raise optuna.TrialPruned()
-            rmses.append(rmse)
         return np.mean(rmses)
 
-    study = optuna.create_study(
-        direction='minimize',
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=3)
-    )
-    study.optimize(objective, n_trials=10)
-    best_params = study.best_params
-    with open('../../model_results/solar_ngboost_best_params.json','w') as f:
-        json.dump(best_params, f, indent=2)
+    study = optuna.create_study(direction='minimize',
+                                pruner=optuna.pruners.MedianPruner(n_startup_trials=3))
+    study.optimize(objective, n_trials=15)
+    best = study.best_params
+    json.dump(best, open('../../../model_results/solar_ngboost_best_params.json','w'), indent=2)
 
-    # 5. CV with best_params
-    cv_log = []
-    for i, (tr, va) in enumerate(splits, start=1):
-        model = NGBRegressor(Dist=Normal, Score=MLE, **best_params)
-        model.fit(X_cv.iloc[tr], y_cv.iloc[tr])
-        preds = model.predict(X_cv.iloc[va])
-        rmse = mean_squared_error(y_cv.iloc[va], preds)
-        cv_log.append({'fold': i, 'rmse_Wm2': rmse})
-        print(f"Fold {i} RMSE (W/m²): {rmse:.2f}")
-    pd.DataFrame(cv_log).to_csv('../../model_results/solar_ngboost_cv.csv', index=False)
+    # CV with best params
+    cvs = []
+    for i, (tr, va) in enumerate(splits,1):
+        mdl = NGBRegressor(Dist=Normal, Score=MLE, **best)
+        mdl.fit(X_cv.iloc[tr], y_cv.iloc[tr])
+        p = mdl.predict(X_cv.iloc[va])
+        cvs.append({'fold':i,'rmse_Wm2':np.sqrt(mean_squared_error(y_cv.iloc[va],p))})
+    pd.DataFrame(cvs).to_csv('../../../model_results/solar_ngboost_cv.csv',index=False)
 
-    # 6. Final train & hold-out test
-    final = NGBRegressor(Dist=Normal, Score=MLE, **best_params)
+    # final train & test
+    final = NGBRegressor(Dist=Normal, Score=MLE, **best)
     final.fit(X_cv, y_cv)
-    y_pred_test = final.predict(X_test)
-    rmse_test   = mean_squared_error(y_test, y_pred_test)
-    print(f"2023 Hold-out RMSE (W/m²): {rmse_test:.2f}")
-    pd.DataFrame([{'year': TEST_YEAR, 'rmse_Wm2': rmse_test}]) \
-      .to_csv('../../model_results/solar_ngboost_holdout_rmse.csv', index=False)
+    pred = final.predict(X_test)
+    rm = np.sqrt(mean_squared_error(y_test, pred))
+    pd.DataFrame([{'year':TEST_YEAR,'rmse_Wm2':rm}])\
+      .to_csv('../../../model_results/solar_ngboost_holdout_rmse.csv',index=False)
 
-    # 7. Save hold-out forecasts + power
+    # save forecasts
     out = pd.DataFrame({
-        'datetime':       X_test.index,
-        'GHI_true':       y_test,
-        'GHI_pred':       y_pred_test,
-        'power_true_MW':  ghi_to_power(y_test.values, df.loc[y_test.index,'zenith']),
-        'power_pred_MW':  ghi_to_power(y_pred_test, df.loc[y_test.index,'zenith'])
+        'datetime':      X_test.index,
+        'GHI_true':      y_test,
+        'GHI_pred':      pred,
+        'power_true_MW': ghi_to_power(y_test.values, df.loc[y_test.index,'zenith']),
+        'power_pred_MW': ghi_to_power(pred,      df.loc[y_test.index,'zenith'])
     })
-    out.to_csv('../../model_results/solar_ngboost_holdout_forecast.csv', index=False)
-    print("All NGBoost solar results saved under model_results/")
+    out.to_csv('../../../model_results/solar_ngboost_holdout_forecast.csv',index=False)
+    print("Done ✓ results in model_results/")
 
 if __name__ == '__main__':
     main()
