@@ -24,7 +24,7 @@ TEST_YEAR          = 2023
 HOURS_PER_YEAR     = 24 * 365
 
 # === Utility Functions ===
-def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     paths = [Path(base_dir)/f"solar_{y}.csv" for y in years]
     missing = [str(p) for p in paths if not p.exists()]
     if missing:
