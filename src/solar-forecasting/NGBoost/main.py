@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 #  CONFIGURATION
 # ─────────────────────────────────────────────────────────────
 SOLAR_DIR       = "../solar_data"
-MODEL_RESULTS   = "../../model_results"
+MODEL_RESULTS   = "../../../model_results/solar"
 CV_YEARS        = list(range(2018, 2023))  # train years
 TEST_YEAR       = 2023
 HOURS_PER_YEAR  = 24 * 365
