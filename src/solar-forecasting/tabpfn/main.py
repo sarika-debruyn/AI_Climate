@@ -103,56 +103,66 @@ def prepare_features(df, clim):
 
 # === Main ===
 def main():
-    # ensure output dir
     os.makedirs(MODEL_RESULTS, exist_ok=True)
-    # load + baseline
+
     df   = load_solar_data()
     clim = build_climatology(df)
-    # prepare features
     X_all, y_resid, clim_all = prepare_features(df, clim)
-    # split train/test
+
     train_mask = X_all.index.year.isin(CV_YEARS)
-    test_mask  = X_all.index.year == TEST_YEAR
-    X_tr, y_tr, clim_tr = X_all.loc[train_mask], y_resid[train_mask], clim_all[train_mask]
-    X_te, y_te, clim_te = X_all.loc[test_mask],  y_resid[test_mask],  clim_all[test_mask]
-    # CV
+    X_tr = X_all.loc[train_mask]
+    y_tr = y_resid[train_mask]
+
+    test_mask = X_all.index.year == TEST_YEAR
+    X_te = X_all.loc[test_mask]
+    y_te = y_resid[test_mask]
+    ghi_te = clim_all[test_mask] + y_te
+    test_times = X_te.index
+
     tscv = TimeSeriesSplit(n_splits=len(CV_YEARS)-1, test_size=HOURS_PER_YEAR)
     cv_log = []
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
     for fold, (tr_idx, va_idx) in enumerate(tscv.split(X_tr), 1):
-        X_train, y_train = X_tr.iloc[tr_idx], y_tr.iloc[tr_idx]
-        X_val,   y_val   = X_tr.iloc[va_idx], y_tr.iloc[va_idx]
+        X_tr_fold, y_tr_fold = X_tr.iloc[tr_idx], y_tr.iloc[tr_idx]
+        X_val_fold, y_val_fold = X_tr.iloc[va_idx], y_tr.iloc[va_idx]
+
         model = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_val)
-        mse    = mean_squared_error(y_val, y_pred)
-        rmse   = np.sqrt(mse)
-        cv_log.append({'fold':fold,'rmse':rmse})
+        model.fit(X_tr_fold, y_tr_fold)
+
+        y_pred = model.predict(X_val_fold)
+        rmse = np.sqrt(mean_squared_error(y_val_fold, y_pred))
+        cv_log.append({'fold':fold,'rmse_Wm2':rmse})
         print(f"Fold {fold} RMSE: {rmse:.2f}")
+
     pd.DataFrame(cv_log).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_cv.csv", index=False)
-    # final train & hold-out
-    final = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
-    final.fit(X_tr, y_tr)
-    resid_pred = final.predict(X_te)
-    ghi_pred   = clim_te + resid_pred
-    ghi_true   = clim_te + y_te
-    mse_test = mean_squared_error(ghi_true, ghi_pred)
-    rmse_test = np.sqrt(mse_test)
+
+    # Final train & hold-out
+    final_model = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
+    final_model.fit(X_tr, y_tr)
+    resid_pred = final_model.predict(X_te)
+    ghi_pred   = clim_all[test_mask] + resid_pred
+
+    rmse_test = np.sqrt(mean_squared_error(ghi_te, ghi_pred))
     print(f"Hold-out RMSE: {rmse_test:.2f}")
-    pd.DataFrame([{'year':TEST_YEAR,'rmse':rmse_test}])\
-      .to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_rmse.csv", index=False)
-    # convert to power
-    solpos = pvlib.solarposition.get_solarposition(df.loc[test_mask].index, LATITUDE, LONGITUDE)
-    zen    = solpos['zenith'].to_numpy(dtype=float)
-    perf   = np.cos(zen * np.pi/180)
-    p_true = (ghi_true * perf * PANEL_AREA * EFFICIENCY * PERF_RATIO / 1e6)
-    p_pred = (ghi_pred * perf * PANEL_AREA * EFFICIENCY * PERF_RATIO / 1e6)
+    pd.DataFrame([{'year':TEST_YEAR,'rmse_Wm2':rmse_test}])\
+        .to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_rmse.csv", index=False)
+
+    solpos = pvlib.solarposition.get_solarposition(
+        time=test_times, latitude=LATITUDE, longitude=LONGITUDE
+    )
+    zen = solpos['zenith'].to_numpy(dtype=float)
+    perf = np.cos(zen * np.pi/180)
+    p_true = ghi_te.values * perf * PANEL_AREA * EFFICIENCY * PERF_RATIO / 1e6
+    p_pred = ghi_pred       * perf * PANEL_AREA * EFFICIENCY * PERF_RATIO / 1e6
+
     pd.DataFrame({
-      'datetime':     df.loc[test_mask].index,
-      'power_true_MW': p_true,
-      'power_pred_MW': p_pred
+        'datetime':     test_times,
+        'power_true_MW':p_true,
+        'power_pred_MW':p_pred
     }).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_forecast.csv", index=False)
-    print('Done: TabPFN residual pipeline complete')
+
+    print('Done: TabPFN residual pipeline complete.')
 
 if __name__ == '__main__':
     main()

@@ -124,7 +124,8 @@ def main():
             m.fit(X_tr.iloc[tr_idx], y_tr.iloc[tr_idx])
             p = m.predict(X_tr.iloc[va_idx])
             # now compute RMSE, not MSE
-            rmse = mean_squared_error(y_tr.iloc[va_idx], p, squared=False)
+            mse  = mean_squared_error(y_tr.iloc[va_idx], p)   # default returns MSE
+            rmse = np.sqrt(mse)
             rmses.append(rmse)
         return np.mean(rmses)
 
@@ -142,7 +143,8 @@ def main():
     ghi_pred   = clim.loc[list(zip(X_te.index.month, X_te.index.hour))].values + resid_pred
 
     # hold-out RMSE
-    rmse_test = mean_squared_error(ghi_te, ghi_pred, squared=False)
+    mse_test = mean_squared_error(ghi_te, ghi_pred)
+    rmse_test = np.sqrt(mse_test)
     print(f"2023 Hold‐out RMSE: {rmse_test:.2f}")
     pd.DataFrame([{"year":TEST_YEAR, "rmse_Wm2":rmse_test}]) \
       .to_csv(f"{MODEL_RESULTS}/solar_ngboost_holdout_rmse.csv", index=False)
