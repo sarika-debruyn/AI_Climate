@@ -16,7 +16,6 @@ from tabpfn import TabPFNRegressor
 warnings.filterwarnings("ignore")
 
 # === Configuration ===
-SOLAR_DIR      = "../solar_data"
 MODEL_RESULTS  = "../../../model_results/solar"
 CV_YEARS       = list(range(2018, 2023))  # train on 2018–2022
 TEST_YEAR      = 2023
