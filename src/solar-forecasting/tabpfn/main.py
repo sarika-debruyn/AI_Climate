@@ -29,7 +29,7 @@ TEMP_COEFF     = 0.004
 T_REF          = 25.0
 
 # === Load Data & Climatology ===
-def load_solar_data(base_dir="../../solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
     parts = []
     for yr in years:
         f = Path(base_dir) / f"solar_{yr}.csv"
