@@ -34,7 +34,7 @@ def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
         f = Path(base_dir) / f"solar_{yr}.csv"
         if not f.exists():
             sys.exit(f"Missing file: {f}")
-        df = pd.read_csv(f, header=0)
+        df = pd.read_csv(f, header=2)
         # parse datetime
         df['datetime'] = pd.to_datetime(df[['Year','Month','Day','Hour','Minute']])
         df = df.set_index('datetime').drop(columns=['Year','Month','Day','Hour','Minute'])
