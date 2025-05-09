@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # === Configuration ===
 LATITUDE        = 32.7
 LONGITUDE       = -114.63
-MODEL_RESULTS   = "model_results/solar"
+MODEL_RESULTS   = "../../../model_results/solar"
 CV_YEARS        = list(range(2018, 2023))  # train on 2018–2022
 TEST_YEAR       = 2023
 HOURS_PER_YEAR  = 24 * 365
@@ -28,7 +28,7 @@ TEMP_COEFF      = 0.004
 T_REF           = 25.0
 
 # === Load Data & Climatology ===
-def load_solar_data(base_dir="solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
     parts = []
     for yr in years:
         f = Path(base_dir) / f"solar_{yr}.csv"
