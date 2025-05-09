@@ -135,7 +135,7 @@ def main():
         cv_log.append({'fold':fold,'rmse_Wm2':rmse})
         print(f"Fold {fold} RMSE: {rmse:.2f}")
 
-    pd.DataFrame(cv_log).to_csv(f"{MODEL_RESULTS}/solar/solar_tabpfn_cv.csv", index=False)
+    pd.DataFrame(cv_log).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_cv.csv", index=False)
 
     # Final train & hold-out
     final_model = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
@@ -146,7 +146,7 @@ def main():
     rmse_test = np.sqrt(mean_squared_error(ghi_te, ghi_pred))
     print(f"Hold-out RMSE: {rmse_test:.2f}")
     pd.DataFrame([{'year':TEST_YEAR,'rmse_Wm2':rmse_test}])\
-        .to_csv(f"{MODEL_RESULTS}/solar/solar_tabpfn_holdout_rmse.csv", index=False)
+        .to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_rmse.csv", index=False)
 
     solpos = pvlib.solarposition.get_solarposition(
         time=test_times, latitude=LATITUDE, longitude=LONGITUDE
@@ -160,7 +160,7 @@ def main():
         'datetime':     test_times,
         'power_true_MW':p_true,
         'power_pred_MW':p_pred
-    }).to_csv(f"{MODEL_RESULTS}/solar/solar_tabpfn_holdout_forecast.csv", index=False)
+    }).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_forecast.csv", index=False)
 
     print('Done: TabPFN residual pipeline complete.')
 

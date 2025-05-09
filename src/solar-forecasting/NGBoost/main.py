@@ -135,7 +135,7 @@ def main():
     )
     study.optimize(objective, n_trials=15)
     best = study.best_params
-    json.dump(best, open(f"{MODEL_RESULTS}/solar/solar_ngboost_best.json","w"), indent=2)
+    json.dump(best, open(f"{MODEL_RESULTS}/solar_ngboost_best.json","w"), indent=2)
 
     model = NGBRegressor(Dist=Normal, Score=MLE, **best)
     model.fit(X_tr, y_tr)
@@ -147,7 +147,7 @@ def main():
     rmse_test = np.sqrt(mse_test)
     print(f"2023 Hold‐out RMSE: {rmse_test:.2f}")
     pd.DataFrame([{"year":TEST_YEAR, "rmse_Wm2":rmse_test}]) \
-      .to_csv(f"{MODEL_RESULTS}/solar/solar_ngboost_holdout_rmse.csv", index=False)
+      .to_csv(f"{MODEL_RESULTS}/solar_ngboost_holdout_rmse.csv", index=False)
 
     # to power
     hr   = X_te.index.hour.values
@@ -160,7 +160,7 @@ def main():
         "datetime":      X_te.index,
         "power_true_MW": p_true,
         "power_pred_MW": p_pred
-    }).to_csv(f"{MODEL_RESULTS}/solar/solar_ngboost_holdout_forecast.csv", index=False)
+    }).to_csv(f"{MODEL_RESULTS}/solar_ngboost_holdout_forecast.csv", index=False)
 
     print("Done — NGBoost residual pipeline complete.")
 
