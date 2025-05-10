@@ -1,3 +1,5 @@
+# File: src/solar-forecasting/tabpfn/main.py
+#!/usr/bin/env python3
 
 from pathlib import Path
 import sys
