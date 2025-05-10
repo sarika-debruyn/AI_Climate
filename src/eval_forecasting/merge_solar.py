@@ -88,7 +88,7 @@ def merge_solar_forecasts():
     df_merged = pd.concat([df_true, df_clim, df_ng, df_tpf], axis=1)
     out_path = solar_output("solar_merged_forecasts.csv")
     df_merged.to_csv(out_path)
-    print(f"✅ Saved merged solar forecasts to {out_path}")
+    print(f"Saved merged solar forecasts to {out_path}")
 
 if __name__ == '__main__':
     merge_solar_forecasts()

@@ -1,17 +1,18 @@
 # File: src/grid_simul/dispatch.py
 #!/usr/bin/env python3
 
+import time
 import sys
 from pathlib import Path
 
 def bootstrap_path():
-    proj_root = Path(__file__).resolve().parents[2]
+    # assume folder structure: …/AI_Climate (1)/src/grid_simul/dispatch.py
+    proj_root = Path(__file__).resolve().parents[2]  # …/AI_Climate (1)
     sys.path.insert(0, str(proj_root / "src"))
 
 bootstrap_path()
 
 import pandas as pd
-import cvxpy as cp
 import numpy as np
 from grid_simul.config import (
     YEAR, CAPACITY_MWH, SOC_INIT, SOC_MIN, SOC_MAX,
@@ -21,135 +22,118 @@ from grid_simul.config import (
 )
 
 # Paths
-DEMAND_FILE = Path(__file__).resolve().parent / f"{YEAR}_demand.csv"
-OUTPUT_FILE = Path(__file__).resolve().parent / "sim_results.csv"
+SCRIPT_DIR  = Path(__file__).resolve().parent
+DEMAND_FILE = SCRIPT_DIR / f"{YEAR}_demand.csv"
+OUTPUT_FILE = SCRIPT_DIR.parents[1] / "model_results" / "sim" / "sim_results.csv"
+MODEL_ROOT  = SCRIPT_DIR.parents[1] / "model_results"
 
-# Rolling-horizon lookahead window (hours)
-HORIZON_HOURS = 24
 
-
-def bias_correct(fc_df):
+def greedy_dispatch(supply, demand):
     """
-    Scale ML forecasts so their mean matches 'perfect'.
+    Fast O(T) dispatch loop:
+      - clip negative supply
+      - power‐limited charge/discharge
+      - separate η_charge/η_discharge
+      - curtailment & SOC tracking
     """
-    mu_perfect = fc_df["perfect"].mean()
-    for m in ("ngboost", "tabpfn"):
-        mu_m = fc_df[m].mean()
-        if mu_m > 0:
-            fc_df[m] *= (mu_perfect / mu_m)
-    return fc_df
+    soc = SOC_INIT
+    grid = curtail = throughput = 0.0
+    total = demand.sum()
+
+    for s_raw, d in zip(supply, demand):
+        s = max(0.0, s_raw)
+        if s >= d:
+            surplus = s - d
+            charge  = min(surplus, P_MAX_CHARGE_MW, SOC_MAX - soc)
+            soc    += charge * RTE_CHARGE
+            curtail   += surplus - charge
+            throughput += charge
+        else:
+            deficit = d - s
+            avail   = min(P_MAX_DISCHARGE_MW, soc - SOC_MIN) * RTE_DISCHARGE
+            disch   = min(deficit, avail)
+            soc    -= disch / RTE_DISCHARGE
+            throughput += disch
+            grid      += deficit - disch
+
+    emissions   = grid * GRID_CO2_T_PER_MWH
+    cost        = grid * 1000 * GRID_COST_USD_KWH
+    pct_met     = 1 - grid / total
+    cycles      = throughput / CAPACITY_MWH
+
+    return {
+        "grid_fallback_MWh":  round(grid,   2),
+        "curtailment_MWh":    round(curtail,2),
+        "percent_demand_met": round(pct_met, 4),
+        "throughput_MWh":     round(throughput,2),
+        "full_equiv_cycles":  round(cycles, 2),
+        "emissions_tCO2":     round(emissions,2),
+        "cost_USD":           round(cost,   2),
+    }
 
 
-def optimize_window(supply_win, demand_win, soc_init):
+def optimize_calibration(raw, perfect, demand):
     """
-    Solve a small LP over a lookahead window.
-    Returns (c0, d0, g0, u0, soc_end).
+    Find affine calibration raw→a*raw+b that minimizes
+    grid_fallback via greedy_dispatch on (a*raw+b).
     """
-    N = len(demand_win)
-
-    # Variables
-    c   = cp.Variable(N)
-    d   = cp.Variable(N)
-    g   = cp.Variable(N)
-    u   = cp.Variable(N)
-    soc = cp.Variable(N+1)
-
-    cons = [soc[0] == soc_init]
-    for k in range(N):
-        s_k = supply_win[k]
-        cons += [
-            soc[k+1] == soc[k] + RTE_CHARGE * c[k] - d[k] / RTE_DISCHARGE,
-            c[k] >= 0, c[k] <= P_MAX_CHARGE_MW,
-            d[k] >= 0, d[k] <= P_MAX_DISCHARGE_MW,
-            g[k] >= 0,
-            u[k] >= 0,
-            s_k + d[k] + g[k] == demand_win[k] + c[k] + u[k],
-            soc[k+1] >= SOC_MIN, soc[k+1] <= SOC_MAX,
-        ]
-
-    cost_per_MWh = 1000 * GRID_COST_USD_KWH
-    obj = cp.Minimize(cp.sum(g) * cost_per_MWh)
-    prob = cp.Problem(obj, cons)
-    try:
-        prob.solve(solver=cp.OSQP, verbose=False)
-    except cp.SolverError:
-        prob.solve(solver=cp.ECOS, verbose=False)
-
-    # Extract first-hour decisions and final SOC
-    c0 = float(c.value[0])
-    d0 = float(d.value[0])
-    g0 = float(g.value[0])
-    u0 = float(u.value[0])
-    soc_end = float(soc.value[1])
-    return c0, d0, g0, u0, soc_end
+    best = {"a": 1.0, "b": 0.0, "fallback": np.inf}
+    # search scale factors around 1.0
+    for a in np.linspace(0.7, 1.3, 61):
+        # set intercept so means match
+        b = perfect.mean() - a * raw.mean()
+        adj = np.maximum(a * raw + b, 0.0)
+        metrics = greedy_dispatch(adj, demand)
+        if metrics["grid_fallback_MWh"] < best["fallback"]:
+            best.update(a=a, b=b, fallback=metrics["grid_fallback_MWh"])
+    return best["a"], best["b"]
 
 
 def main():
-    # Load demand profile
-    demand = pd.read_csv(
+    t0 = time.time()
+
+    # load demand
+    dem_df = pd.read_csv(
         DEMAND_FILE, parse_dates=["datetime"], index_col="datetime"
-    )["demand_MW"].values
-    total_demand = demand.sum()
+    )
+    demand = dem_df["demand_MW"].values
+    idx    = dem_df.index
 
     results = []
     for resource in ("solar", "wind"):
-        # locate forecast file
-        fc_path = Path(__file__).resolve().parents[2] / "model_results" / resource / "outputs" / f"{resource}_merged_forecasts.csv"
-        if not fc_path.exists():
-            print(f"Missing {fc_path}, skipping {resource}")
+        path = MODEL_ROOT / resource / "outputs" / f"{resource}_merged_forecasts.csv"
+        if not path.exists():
+            print(f"Missing {path}, skipping {resource}")
             continue
 
-        fc_df = pd.read_csv(fc_path, parse_dates=["datetime"], index_col="datetime")
-        fc_df = bias_correct(fc_df)
+        fc_df = pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
+        fc_df = fc_df.reindex(idx).fillna(0.0)
 
-        # align & clip
-        fc_df = fc_df.reindex(pd.date_range(
-            start=f"{YEAR}-01-01 00:00",
-            end=f"{YEAR}-12-31 23:00", freq="h"
-        )).fillna(0.0).clip(lower=0.0)
+        # apply dispatch-aware affine calibration for ML models
+        for model in ("ngboost", "tabpfn"):
+            raw     = fc_df[model].values
+            perfect = fc_df["perfect"].values
+            a, b    = optimize_calibration(raw, perfect, demand)
+            fc_df[model] = np.maximum(a * raw + b, 0.0)
 
+        # run dispatch for each column
         for model in fc_df.columns:
-            supply = fc_df[model].values
-            soc = SOC_INIT
-            grid_total = 0.0
-            curtail_total = 0.0
-            throughput_total = 0.0
-
-            T = len(demand)
-            for t in range(T):
-                end = min(t + HORIZON_HOURS, T)
-                sup_win = supply[t:end]
-                dem_win = demand[t:end]
-                c0, d0, g0, u0, soc = optimize_window(sup_win, dem_win, soc)
-                grid_total      += g0
-                curtail_total   += u0
-                throughput_total+= (c0 + d0)
-
-            emissions = grid_total * GRID_CO2_T_PER_MWH
-            cost      = grid_total * total_demand * 0 + grid_total * 1000 * GRID_COST_USD_KWH  # grid_total MWh->kWh
-            percent_met = 1 - grid_total / total_demand
-            full_cycles = throughput_total / CAPACITY_MWH
-
+            metrics = greedy_dispatch(fc_df[model].values, demand)
             results.append({
                 "resource": resource,
-                "model": model,
-                "grid_fallback_MWh":    round(grid_total, 2),
-                "curtailment_MWh":      round(curtail_total, 2),
-                "percent_demand_met":   round(percent_met, 4),
-                "throughput_MWh":       round(throughput_total, 2),
-                "full_equiv_cycles":    round(full_cycles, 2),
-                "emissions_tCO2":       round(emissions, 2),
-                "cost_USD":             round(cost, 2),
+                "model":    model,
+                **metrics
             })
 
     if not results:
-        print("No forecast data available. Please run forecasting first.")
-        return
+        print("No forecast data found; run forecasting scripts first.")
+    else:
+        sim_df = pd.DataFrame(results).sort_values(["resource","model"])
+        sim_df.to_csv(OUTPUT_FILE, index=False)
+        print(f"\nSaved summary → {OUTPUT_FILE}\n")
+        print(sim_df.to_markdown(index=False))
 
-    sim_df = pd.DataFrame(results).sort_values(["resource", "model"])
-    sim_df.to_csv(OUTPUT_FILE, index=False)
-    print(f"Saved summary to {OUTPUT_FILE}")
-    print(sim_df.to_markdown(index=False))
+    print(f"\nTotal runtime: {time.time() - t0:.2f}s")
 
 
 if __name__ == "__main__":
