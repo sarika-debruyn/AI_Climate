@@ -1,10 +1,14 @@
-import os
+from pathlib import Path
 import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
 import pandas as pd
 import numpy as np
-from pathlib import Path
 from sklearn.metrics import mean_squared_error
 
+from shared.path_utils import WIND_DATA_DIR, wind_output, _ensure_dirs
+
+# Ensure output directories exist
+_ensure_dirs()
 
 # === Wind Farm Constants ===
 AIR_DENSITY    = 1.121    # kg/m³
@@ -18,7 +22,7 @@ HOLDOUT_YEAR = 2023
 
 # --- Helper Functions ---
 
-def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
+def load_wind_data(base_dir=WIND_DATA_DIR, years=range(2018, 2024)):
     parts = []
     for yr in years:
         path = Path(base_dir) / f"wind_{yr}.csv"
@@ -40,10 +44,8 @@ def wind_speed_to_power(ws):
     coef = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
     return coef * (ws**3) / 1e6
 
-# --- Main Script ---
 
 def main():
-    os.makedirs("../../model_results", exist_ok=True)
 
     # Load 2018–2023 data
     df = load_wind_data()
@@ -58,8 +60,8 @@ def main():
     power_pred = wind_speed_to_power(ws_pred)
 
     # Evaluate RMSE
-    rmse_ws = mean_squared_error(ws_true, ws_pred)
-    rmse_pw = mean_squared_error(power_true, power_pred)
+    rmse_ws = np.sqrt(mean_squared_error(ws_true, ws_pred))
+    rmse_pw = np.sqrt(mean_squared_error(power_true, power_pred))
 
     # Save forecasts
     out = pd.DataFrame({
@@ -69,15 +71,17 @@ def main():
         'power_pred_MW':  power_pred
     })
     out.index.name = 'datetime'
-    out.to_csv("../../model_results/wind_perfect_2023_forecast.csv")
+    out.to_csv(wind_output("wind_perfect_2023_forecast.csv"))
 
     # Save RMSE
     pd.DataFrame([
         {'metric':'RMSE_WS_m_s',    'value':rmse_ws},
         {'metric':'RMSE_power_MW',  'value':rmse_pw}
-    ]).to_csv("../../model_results/wind_perfect_2023_rmse.csv", index=False)
+    ]).to_csv(wind_output("wind_perfect_2023_rmse.csv"), index=False)
 
-    print("Wind perfect-foresight baseline saved.")
+    print("Wind perfect-foresight baseline saved:")
+    print(f"   forecast → {wind_output('wind_perfect_2023_forecast.csv')}")
+    print(f"   RMSE     → {wind_output('wind_perfect_2023_rmse.csv')}")
 
 if __name__ == '__main__':
     main()

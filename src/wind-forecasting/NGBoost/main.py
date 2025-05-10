@@ -1,19 +1,21 @@
-import os
-import sys
-import json
-import warnings
 from pathlib import Path
-
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
+import warnings
+import json
 import pandas as pd
 import numpy as np
+import optuna
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
 from ngboost.scores import MLE
-import optuna
 
-warnings.filterwarnings('ignore')
+from shared.path_utils import WIND_DATA_DIR, wind_output, _ensure_dirs
+
+warnings.filterwarnings("ignore")
+_ensure_dirs()  # ensure wind output folders exist
 
 # === Constants & Parameters ===
 AIR_DENSITY    = 1.121    # kg/m³
@@ -27,7 +29,7 @@ TEST_YEAR      = 2023
 HOURS_PER_YEAR = 24 * 365
 
 # === Helper Functions ===
-def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
+def load_wind_data(base_dir=WIND_DATA_DIR, years=range(2018, 2024)):
     parts = []
     for yr in years:
         path = Path(base_dir) / f"wind_{yr}.csv"
@@ -67,8 +69,7 @@ def wind_speed_to_power(ws):
 
 # === Main ===
 def main():
-    os.makedirs("../../model_results", exist_ok=True)
-
+    
     # 1. Load & feature-engineer
     df = load_wind_data()
     X_all, y_all = prepare_features(df)
@@ -111,7 +112,7 @@ def main():
     )
     study.optimize(objective, n_trials=10)
     best_params = study.best_params
-    with open('../../model_results/wind_ngboost_best_params.json','w') as f:
+    with open(wind_output('wind_ngboost_best_params.json'), 'w') as f:
         json.dump(best_params, f, indent=2)
 
     # 5. CV with best_params
@@ -125,8 +126,9 @@ def main():
         rmse = mean_squared_error(y_va, y_pred)
         cv_records.append({'fold': fold_idx, 'rmse_m_s': rmse})
         print(f"Fold {fold_idx} RMSE (m/s): {rmse:.3f}")
+    
     pd.DataFrame(cv_records).to_csv(
-        '../../model_results/wind_ngboost_cv.csv', index=False
+        wind_output('wind_ngboost_cv.csv'), index=False
     )
 
     # 6. Final train on 2018–2022 & hold-out test on 2023
@@ -135,9 +137,10 @@ def main():
     y_test_pred = final_model.predict(X_test)
     rmse_test   = mean_squared_error(y_test, y_test_pred)
     print(f"2023 Hold-out RMSE (m/s): {rmse_test:.3f}")
-    pd.DataFrame([{'year': TEST_YEAR, 'rmse_m_s': rmse_test}]).to_csv(
-        '../../model_results/wind_ngboost_holdout_rmse.csv', index=False
+    pd.DataFrame([{"year": TEST_YEAR, "rmse_m_s": rmse_test}]).to_csv(
+        wind_output("wind_ngboost_holdout_rmse.csv"), index=False
     )
+
 
     # 7. Save hold-out forecasts and power
     df_out = pd.DataFrame({
@@ -147,8 +150,28 @@ def main():
     })
     df_out['power_true_MW'] = wind_speed_to_power(df_out['speed_true_m_s'])
     df_out['power_pred_MW'] = wind_speed_to_power(df_out['speed_pred_m_s'])
-    df_out.to_csv('../../model_results/wind_ngboost_holdout_forecast.csv', index=False)
-    print("All NGBoost results saved under model_results/")
+    df_out.to_csv(wind_output("wind_ngboost_holdout_forecast.csv"))
+    print("Wind NGBoost pipeline complete. Outputs in model_results/wind/outputs/")
 
-if __name__ == '__main__':
+    # Save results
+    output_dir = Path("../model_results/wind/outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save individual model results
+    results = {"NGBoost": pd.DataFrame({"datetime": X_test.index, "power_pred_MW": df_out['power_pred_MW']})}
+    for model_name, forecasts in results.items():
+        out_path = output_dir / f"{model_name}_forecasts.csv"
+        forecasts.to_csv(out_path)
+        print(f"Saved {model_name} forecasts to {out_path}")
+    
+    # Merge all forecasts
+    merged_forecasts = pd.concat(results.values(), axis=1)
+    merged_forecasts.columns = results.keys()
+    
+    # Save merged forecasts
+    merged_path = output_dir / "wind_merged_forecasts.csv"
+    merged_forecasts.to_csv(merged_path)
+    print(f"Saved merged forecasts to {merged_path}")
+
+if __name__ == "__main__":
     main()

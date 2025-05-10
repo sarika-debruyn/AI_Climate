@@ -1,24 +1,20 @@
-import os
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
 import pandas as pd
 import matplotlib.pyplot as plt
-
-"""
-This script produces two visualizations for wind forecasts:
-1. A time-series plot of true power vs. all forecasts.
-2. A boxplot of forecast errors for each model.
-
-Outputs are saved under ../../model_results/visualizations/wind/.
-"""
-#------------
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+from shared.path_utils import wind_output, wind_visual, _ensure_dirs
+
+# ensure output & visuals dirs exist
+_ensure_dirs()
 
 #--------------
 def evaluate_wind():
     # Paths
-    merged_csv = "../../model_results/wind/wind_merged_forecasts.csv"
-    out_dir    = "../../model_results/visualizations/wind"
-    os.makedirs(out_dir, exist_ok=True)
+    merged_csv = wind_output("wind_merged_forecasts.csv")
 
     # Load merged forecasts
     df = pd.read_csv(
@@ -54,7 +50,7 @@ def evaluate_wind():
     plt.legend(ncol=2)
     plt.grid(ls=":", lw=0.5, alpha=0.7)
     plt.tight_layout()
-    plt.savefig("../../model_results/visualizations/wind/wind_jan1-7_timeseries.png", dpi=300)
+    plt.savefig(wind_visual("wind_jan1-7_timeseries.png"), dpi=300)
     plt.close()
     print("Saved detailed hourly plot for Jan 1–7 to wind_jan1-7_timeseries.png")
 
@@ -78,24 +74,10 @@ def evaluate_wind():
     ax.grid(which="both", linestyle=":", linewidth=0.5, alpha=0.7)
     ax.legend(loc="upper left", ncol=2)
     fig.tight_layout()
-    fig.savefig(f"../../model_results/visualizations/wind/wind_all_models_timeseries.png", dpi=300)
+    fig.savefig(wind_visual("wind_all_models_timeseries.png"), dpi=300)
     plt.close(fig)
-    print(f"Saved time-series plot to model_results/visualizations/wind/wind_all_models_timeseries.png")
+    print(f"Saved time-series plot to {wind_visual('wind_all_models_timeseries.png')}")
 
-    # --- 2. Error distribution boxplot ---
-    errors = df[["perfect", "climatology", "ngboost", "tabpfn"]].subtract(
-        df["perfect"], axis=0
-    )
-
-    plt.figure(figsize=(6, 4))
-    errors.boxplot()
-    plt.title("Wind Forecast Error Distribution (2023)")
-    plt.ylabel("Error (MW)")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(f"../../model_results/visualizations/wind/wind_error_boxplot.png", dpi=300)
-    plt.close()
-    print(f"Saved error boxplot to model_results/visualizations/wind/wind_error_boxplot.png")
 
 
 if __name__ == '__main__':

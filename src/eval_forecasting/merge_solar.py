@@ -1,16 +1,21 @@
-# -- bootstrapping: add REPO/src to sys.path -----------------------------
-from shared.path_utils import add_src_to_path
-add_src_to_path(2)  # Adjust if needed
-# -----------------------------------------------------------------------
+#!/usr/bin/env python3
+"""
+Merge solar forecasts from different models into a single file.
+"""
+from pathlib import Path
+import sys
 
-# solar_merge_forecasts.py
+# Add the project root to Python's path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import pandas as pd
+from src.shared.path_utils import solar_output
 
 def merge_solar_forecasts():
     # Load true solar power (perfect baseline) as ground truth
     df_true = pd.read_csv(
-        "../../model_results/solar/outputs/solar_perfect_2023_forecast.csv",
-        dtype={'datetime': str}
+        solar_output("solar_perfect_2023_forecast.csv"),
+        dtype={"datetime": str}
     )
     
     # Convert datetime column to datetime objects
@@ -26,8 +31,8 @@ def merge_solar_forecasts():
 
     # Climatology
     df_clim = pd.read_csv(
-        "../../model_results/solar/outputs/solar_climatology_2023_forecast.csv",
-        dtype={'datetime': str}
+        solar_output("solar_climatology_2023_forecast.csv"),
+        dtype={"datetime": str}
     )
     
     # Convert datetime column to datetime objects
@@ -43,8 +48,8 @@ def merge_solar_forecasts():
 
     # NGBoost
     df_ng = pd.read_csv(
-        "../../model_results/solar/outputs/solar_ngboost_holdout_forecast.csv",
-        dtype={'datetime': str}
+        solar_output("solar_ngboost_holdout_forecast.csv"),
+        dtype={"datetime": str}
     )
     
     # Convert datetime column to datetime objects
@@ -60,8 +65,8 @@ def merge_solar_forecasts():
 
     # TabPFN (convert kW to MW if needed)
     df_tpf = pd.read_csv(
-        "../../model_results/solar/outputs/solar_tabpfn_holdout_forecast.csv",
-        dtype={'datetime': str}
+        solar_output("solar_tabpfn_holdout_forecast.csv"),
+        dtype={"datetime": str}
     )
     
     # Convert datetime column to datetime objects
@@ -80,9 +85,10 @@ def merge_solar_forecasts():
     df_tpf = df_tpf[["tabpfn"]]
 
     # Merge all forecasts
-    df_merged = df_true.to_frame().join([df_clim.to_frame(), df_ng.to_frame(), df_tpf], how="inner")
-    df_merged.to_csv("../../model_results/solar/outputs/solar_merged_forecasts.csv")
-    print("Saved merged solar forecasts to ../../model_results/solar/outputs/solar_merged_forecasts.csv")
+    df_merged = pd.concat([df_true, df_clim, df_ng, df_tpf], axis=1)
+    out_path = solar_output("solar_merged_forecasts.csv")
+    df_merged.to_csv(out_path)
+    print(f"✅ Saved merged solar forecasts to {out_path}")
 
 if __name__ == '__main__':
     merge_solar_forecasts()

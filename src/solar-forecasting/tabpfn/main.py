@@ -1,8 +1,9 @@
-import os
-import sys
-import warnings
-from pathlib import Path
 
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+import os
+import warnings
 import pandas as pd
 import numpy as np
 import torch
@@ -12,6 +13,17 @@ from sklearn.metrics import mean_squared_error
 from tabpfn import TabPFNRegressor
 
 warnings.filterwarnings("ignore")
+
+# ─── Centralised paths & helpers ─────────────────────────────────────────
+from shared.path_utils import (
+    SOLAR_DATA_DIR,
+    solar_output,
+    _ensure_dirs
+)
+
+warnings.filterwarnings("ignore")
+_ensure_dirs()  # ensure model_results/solar/outputs exists
+
 
 # === Configuration ===
 LATITUDE        = 32.7
@@ -28,7 +40,7 @@ TEMP_COEFF      = 0.004
 T_REF           = 25.0
 
 # === Load Data & Climatology ===
-def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir=SOLAR_DATA_DIR, years=range(2018, 2024)):
     parts = []
     for yr in years:
         f = Path(base_dir) / f"solar_{yr}.csv"
@@ -134,8 +146,11 @@ def main():
         rmse = np.sqrt(mean_squared_error(y_tr.iloc[va_idx], resid_pred_va))
         cv_log.append({"fold": fold, "rmse_resid_Wm2": rmse})
         print(f"Fold {fold} RMSE (resid): {rmse:.2f}")
-    pd.DataFrame(cv_log).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_cv.csv", index=False)
-
+    
+    pd.DataFrame(cv_log).to_csv(
+        solar_output("solar_tabpfn_cv.csv"),
+        index=False
+    )
     # 5) final train & predict residuals on test
     final = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
     final.fit(X_tr, y_tr)
@@ -148,7 +163,7 @@ def main():
     rmse_ghi = np.sqrt(mean_squared_error(ghi_te_full, ghi_pred_full))
     print(f"2023 Hold-out RMSE (GHI): {rmse_ghi:.2f}")
     pd.DataFrame([{"year": TEST_YEAR, "rmse_Wm2": rmse_ghi}]) \
-      .to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_rmse.csv", index=False)
+      .to_csv(solar_output("solar_tabpfn_holdout_rmse.csv"), index=False)
 
     # 8) convert both true & forecast GHI → Power (MW)
     solpos = pvlib.solarposition.get_solarposition(test_times, LATITUDE, LONGITUDE)
@@ -164,10 +179,13 @@ def main():
 
     # 10) save hourly forecasts
     pd.DataFrame({
-        "datetime":      test_times,
+        "datetime":      times_te,
         "power_true_MW": p_true,
         "power_pred_MW": p_pred
-    }).to_csv(f"{MODEL_RESULTS}/solar_tabpfn_holdout_forecast.csv", index=False)
+    }).to_csv(
+        solar_output("solar_tabpfn_holdout_forecast.csv"),
+        index=False
+    )
 
     print("Done — full-GHI & power forecasts saved.")
 

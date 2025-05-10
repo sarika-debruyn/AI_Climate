@@ -1,5 +1,5 @@
 """
-Centralised, portable paths for the AI‑Climate repo.
+Centralised, portable paths for the AI_Climate repo.
 """
 
 from pathlib import Path

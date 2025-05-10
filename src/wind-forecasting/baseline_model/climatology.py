@@ -1,9 +1,16 @@
-import os
+
+
+from pathlib import Path
 import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import pandas as pd
 import numpy as np
-from pathlib import Path
 from sklearn.metrics import mean_squared_error
+
+from shared.path_utils import WIND_DATA_DIR, wind_output, _ensure_dirs
+
+warnings.filterwarnings("ignore")
+_ensure_dirs()  # make sure wind output & visuals folders exist
 
 # === Constants ===
 AIR_DENSITY    = 1.121    # kg/m³
@@ -17,7 +24,7 @@ HOLDOUT_YEAR  = 2023
 
 # === Helper Functions ===
 
-def load_wind_data(base_dir="../wind_data", years=range(2018, 2024)):
+def load_wind_data(base_dir=WIND_DATA_DIR, years=range(2018, 2024)):
     parts = []
     for yr in years:
         path = Path(base_dir) / f"wind_{yr}.csv"
@@ -42,7 +49,6 @@ def wind_speed_to_power(windspeed):
 # === Main ===
 
 def main():
-    os.makedirs("model_results", exist_ok=True)
 
     # 1. Load 2018–2023 data
     df = load_wind_data()
@@ -65,7 +71,7 @@ def main():
         .rename(columns={'wind_power_MW':'clim_power_MW'})
     )
     climatology.to_csv(
-        "model_results/wind_climatology_profile.csv", index=False
+        wind_output("wind_climatology_profile.csv"), index=False
     )
 
     # 5. Forecast for 2023 based on climatology
@@ -84,7 +90,7 @@ def main():
     )
     rmse_df = pd.DataFrame([{'metric':'RMSE_power_MW', 'value': rmse_power}])
     rmse_df.to_csv(
-        "model_results/wind_climatology_2023_rmse.csv", index=False
+        wind_output("wind_climatology_2023_rmse.csv"), index=False
     )
 
     # 7. Save forecasts
@@ -92,7 +98,7 @@ def main():
     df_out.index = df_hold.index
     df_out.index.name = 'datetime'
     df_out.to_csv(
-        "model_results/wind_climatology_2023_forecast.csv"
+        wind_output("wind_climatology_2023_forecast.csv")
     )
 
     print("Wind climatology baseline completed:")

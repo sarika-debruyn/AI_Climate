@@ -1,14 +1,18 @@
-import os
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
+import warnings
 import pandas as pd
 import numpy as np
 import torch
-from pathlib import Path
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error
 from tabpfn import TabPFNRegressor
-import warnings
+
+from shared.path_utils import WIND_DATA_DIR, wind_output, _ensure_dirs
 
 warnings.filterwarnings("ignore")
+_ensure_dirs()  # ensure model_results/wind/outputs exists
 
 # === Constants & Parameters ===
 AIR_DENSITY    = 1.121    # kg/m³
@@ -27,6 +31,23 @@ HOURS_PER_YEAR = 24 * 365
 def wind_to_power(ws):
     coef = 0.5 * AIR_DENSITY * SWEEP_AREA * EFFICIENCY * TURBINE_COUNT
     return coef * (ws ** 3) / 1000  # kW
+
+def load_wind_data(base_dir=WIND_DATA_DIR):
+    parts = []
+    for year in range(2018, TEST_YEAR + 1):
+        path = Path(base_dir) / f"wind_{year}.csv"
+        if not path.exists():
+            raise FileNotFoundError(f"Missing file: {path}")
+        df = (pd.read_csv(path, skiprows=2)
+                .assign(datetime=lambda d: pd.to_datetime(
+                    dict(year=d.Year, month=d.Month, day=d.Day,
+                         hour=d.Hour, minute=d.Minute)
+                ))
+                .set_index("datetime"))
+        parts.append(df[['Wind Speed','Temperature','Relative Humidity',
+                         'Pressure','Cloud Type','Dew Point']].apply(pd.to_numeric, errors='coerce'))
+    df = pd.concat(parts).sort_index().dropna(subset=['Wind Speed'])
+    return df
 
 def make_features(df):
     df = df.copy()
@@ -50,27 +71,8 @@ def make_features(df):
     df = df.dropna(subset=feat_cols + ['power_kW'])
     return df[feat_cols], df['power_kW']
 
-def load_wind_data(base_dir="../wind_data"):
-    parts = []
-    for year in range(2018, TEST_YEAR + 1):
-        path = Path(base_dir) / f"wind_{year}.csv"
-        if not path.exists():
-            raise FileNotFoundError(f"Missing file: {path}")
-        df = (pd.read_csv(path, skiprows=2)
-                .assign(datetime=lambda d: pd.to_datetime(
-                    dict(year=d.Year, month=d.Month, day=d.Day,
-                         hour=d.Hour, minute=d.Minute)
-                ))
-                .set_index("datetime"))
-        parts.append(df[['Wind Speed','Temperature','Relative Humidity',
-                         'Pressure','Cloud Type','Dew Point']].apply(pd.to_numeric, errors='coerce'))
-    df = pd.concat(parts).sort_index().dropna(subset=['Wind Speed'])
-    return df
-
 # === Main Pipeline ===
 def main():
-    os.makedirs("../../model_results", exist_ok=True)
-
     # 1. Load & feature-engineer
     df = load_wind_data()
     X_all, y_all = make_features(df)
@@ -106,19 +108,23 @@ def main():
         print(f"Fold {fold} RMSE (kW): {rmse:.2f}")
         cv_records.append({'fold': fold, 'rmse_kW': rmse})
 
-    pd.DataFrame(cv_records).to_csv("../../model_results/wind_tabpfn_cv.csv", index=False)
+    pd.DataFrame(cv_records).to_csv(
+        wind_output("wind_tabpfn_cv.csv"), index=False
+    )
 
     # 4. Final train on 2018–2022, test on 2023
     model_final = TabPFNRegressor(device=device, ignore_pretraining_limits=True)
     model_final.fit(X_cv, y_cv)
 
     y_test_pred = model_final.predict(X_test)
-    rmse_test   = mean_squared_error(y_test, y_test_pred)
+    rmse_test   = np.sqrt(mean_squared_error(y_test, y_test_pred))
     print(f"\n2023 Hold-out RMSE (kW): {rmse_test:.2f}")
 
     # save hold-out RMSE
-    pd.DataFrame([{'year': TEST_YEAR, 'rmse_kW': rmse_test}]) \
-      .to_csv("../../model_results/wind_tabpfn_2023_holdout_rmse.csv", index=False)
+
+    pd.DataFrame([{'year': TEST_YEAR, 'rmse_kW': rmse_test}]).to_csv(
+        wind_output("wind_tabpfn_2023_holdout_rmse.csv"), index=False
+    )
 
     # save forecasts for downstream analysis
     out = pd.DataFrame({
@@ -126,8 +132,10 @@ def main():
         'power_true_kW': y_test,
         'power_pred_kW': y_test_pred
     })
-    out.to_csv("../../model_results/wind_tabpfn_2023_holdout_forecast.csv", index=False)
-    print("Saved 2023 hold-out forecasts to ../../model_results/wind_tabpfn_2023_holdout_forecast.csv")
+    out.to_csv(
+        wind_output("wind_tabpfn_2023_holdout_forecast.csv")
+    )
+    print("Saved 2023 hold-out forecasts to " + wind_output("wind_tabpfn_2023_holdout_forecast.csv"))
 
 if __name__ == "__main__":
     main()

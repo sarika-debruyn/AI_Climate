@@ -1,9 +1,12 @@
-import os
+from pathlib import Path
 import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
+import os
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.metrics import mean_squared_error
+from shared.path_utils import SOLAR_DATA_DIR
 
 # === Constants ===
 PANEL_AREA_TOTAL   = 256_000    # m² (40 MW solar farm)
@@ -15,7 +18,7 @@ HOLDOUT_YEAR  = 2023
 
 # === Helper Functions ===
 
-def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
+def load_solar_data(base_dir=SOLAR_DATA_DIR, years=range(2018, 2024)):
     parts = []
     for yr in years:
         path = Path(base_dir) / f"solar_{yr}.csv"
@@ -41,7 +44,9 @@ def ghi_to_power(ghi):
 # === Main ===
 
 def main():
-    os.makedirs("model_results", exist_ok=True)
+    # Save results
+    output_dir = Path("../../model_results/solar/outputs")  # Go up two levels to project root
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Load data for 2018–2023
     df = load_solar_data()
@@ -61,7 +66,8 @@ def main():
         .rename(columns={'GHI':'GHI_climatology'})
     )
     climatology.to_csv(
-        "model_results/solar_climatology_profile.csv", index=False
+        output_dir / "solar_climatology_profile.csv",
+        index=False
     )
 
     # 4. Forecast for 2023 hold-out using climatology
@@ -88,20 +94,24 @@ def main():
         {'metric':'RMSE_power_MW', 'value':rmse_power}
     ])
     rmse_df.to_csv(
-        "model_results/solar_climatology_2023_rmse.csv", index=False
+        output_dir / "solar_climatology_2023_rmse.csv",
+        index=False
     )
 
-    # 6. Save hold-out forecasts
-    df_out = df_fore[['GHI','GHI_climatology','power_true_MW','power_clim_MW']].copy()
-    df_out.index.name = 'datetime'
-    df_out.to_csv(
-        "model_results/solar_climatology_2023_forecast.csv"
-    )
+    # Save the forecast
+    forecast_df = pd.DataFrame({
+        "datetime": df_fore.index,
+        "power_clim_MW": df_fore['power_clim_MW']
+    })
+    
+    out_path = output_dir / "solar_climatology_2023_forecast.csv"
+    forecast_df.to_csv(out_path, index=False)
+    print(f"Saved solar climatology forecast to {out_path}")
 
     print("Climatology baseline completed:")
-    print(" - Profile: model_results/solar_climatology_profile.csv")
-    print(" - Forecast: model_results/solar_climatology_2023_forecast.csv")
-    print(" - RMSE: model_results/solar_climatology_2023_rmse.csv")
+    print(f" - Profile:  {output_dir / 'solar_climatology_profile.csv'}")
+    print(f" - RMSE:     {output_dir / 'solar_climatology_2023_rmse.csv'}")
+    print(f" - Forecast: {output_dir / 'solar_climatology_2023_forecast.csv'}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

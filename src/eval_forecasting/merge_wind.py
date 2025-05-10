@@ -1,10 +1,20 @@
-# wind_merge_forecasts.py
+#!/usr/bin/env python3
+"""
+Merge wind forecasts from different models into a single file.
+"""
+from pathlib import Path
+import sys
+
+# Add the project root to Python's path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import pandas as pd
+from src.shared.path_utils import wind_output
 
 def merge_wind_forecasts():
     # Load true wind power (perfect baseline) as ground truth
     df_true = pd.read_csv(
-        "../../model_results/wind/wind_perfect_2023_forecast.csv",
+        wind_output("wind_perfect_2023_forecast.csv"),
         dtype={'datetime': str}
     )
     
@@ -21,7 +31,7 @@ def merge_wind_forecasts():
 
     # Climatology
     df_clim = pd.read_csv(
-        "../../model_results/wind/wind_climatology_2023_forecast.csv",
+        wind_output("wind_climatology_2023_forecast.csv"),
         dtype={'datetime': str}
     )
     
@@ -38,7 +48,7 @@ def merge_wind_forecasts():
 
     # NGBoost
     df_ng = pd.read_csv(
-        "../../model_results/wind/wind_ngboost_holdout_forecast.csv",
+        wind_output("wind_ngboost_holdout_forecast.csv"),
         dtype={'datetime': str}
     )
     
@@ -55,7 +65,7 @@ def merge_wind_forecasts():
 
     # TabPFN (convert kW to MW if needed)
     df_tpf = pd.read_csv(
-        "../../model_results/wind/wind_tabpfn_2023_holdout_forecast.csv",
+        wind_output("wind_tabpfn_2023_holdout_forecast.csv"),
         dtype={'datetime': str}
     )
     
@@ -75,9 +85,9 @@ def merge_wind_forecasts():
     df_tpf = df_tpf[["tabpfn"]]
 
     # Merge all forecasts
-    df_merged = df_true.to_frame().join([df_clim.to_frame(), df_ng.to_frame(), df_tpf], how="inner")
-    df_merged.to_csv("../../model_results/wind/wind_merged_forecasts.csv")
-    print("Saved merged wind forecasts to ../../model_results/wind/wind_merged_forecasts.csv")
+    df_merged = pd.concat([df_true, df_clim, df_ng, df_tpf], axis=1)
+    df_merged.to_csv(wind_output("wind_merged_forecasts.csv"))
+    print("Saved merged wind forecasts to " + str(wind_output("wind_merged_forecasts.csv")))
 
 if __name__ == '__main__':
     merge_wind_forecasts()

@@ -1,29 +1,26 @@
-# -- bootstrapping: add REPO/src to sys.path -----------------------------
-from shared.path_utils import add_src_to_path
-add_src_to_path(2)  # Adjust if needed
-# -----------------------------------------------------------------------
 
-import os
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.shared.path_utils import build_path, ensure_directory
-
-"""
-This script produces two visualizations for solar forecasts:
-1. A time-series plot of true power vs. all forecasts.
-2. A boxplot of forecast errors for each model.
-
-Outputs are saved under ../../model_results/solar/visuals/.
-"""
-#------------
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+from shared.path_utils import (
+    solar_output,
+    solar_visual,
+    _ensure_dirs
+)
+
+# ensure output & visual dirs exist
+_ensure_dirs()
 
 #--------------
 def evaluate_solar():
     # Paths
-    merged_csv = build_path("model_results", "solar", "outputs", "solar_merged_forecasts.csv")
-    out_dir = build_path("model_results", "solar", "visuals")
+    merged_csv = solar_output("solar_merged_forecasts.csv")
+    out_dir = solar_visual()
     ensure_directory(out_dir)
 
     # Load merged forecasts
@@ -60,7 +57,7 @@ def evaluate_solar():
     plt.legend(ncol=2)
     plt.grid(ls=":", lw=0.5, alpha=0.7)
     plt.tight_layout()
-    plt.savefig(build_path("model_results", "solar", "visuals", "solar_jan1-7_timeseries.png"), dpi=300)
+    plt.savefig(solar_visual("solar_jan1-7_timeseries.png"), dpi=300)
     plt.close()
     print("Saved detailed hourly plot for Jan 1–7 to solar_jan1-7_timeseries.png")
 
@@ -84,24 +81,10 @@ def evaluate_solar():
     ax.grid(which="both", linestyle=":", linewidth=0.5, alpha=0.7)
     ax.legend(loc="upper left", ncol=2)
     fig.tight_layout()
-    fig.savefig(build_path("model_results", "solar", "visuals", "solar_all_models_timeseries.png"), dpi=300)
+    fig.savefig(solar_visual("solar_all_models_timeseries.png"), dpi=300)
     plt.close(fig)
-    print(f"Saved time-series plot to {build_path('model_results', 'solar', 'visuals', 'solar_all_models_timeseries.png')}")
+    print(f"Saved time-series plot to {solar_visual('solar_all_models_timeseries.png')}")
 
-    # --- 2. Error distribution boxplot ---
-    errors = df[["perfect", "climatology", "ngboost", "tabpfn"]].subtract(
-        df["perfect"], axis=0
-    )
-
-    plt.figure(figsize=(6, 4))
-    errors.boxplot()
-    plt.title("Solar Forecast Error Distribution (2023)")
-    plt.ylabel("Error (MW)")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(build_path("model_results", "solar", "visuals", "solar_error_boxplot.png"), dpi=300)
-    plt.close()
-    print(f"Saved error boxplot to {build_path('model_results', 'solar', 'visuals', 'solar_error_boxplot.png')}")
 
 
 if __name__ == '__main__':
