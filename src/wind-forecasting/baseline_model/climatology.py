@@ -1,4 +1,5 @@
-
+#!/usr/bin/env python3
+# src/wind-forecasting/baseline_model/climatology.py
 
 from pathlib import Path
 import sys

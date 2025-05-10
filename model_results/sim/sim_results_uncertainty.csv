@@ -1,0 +1,5 @@
+resource,model,fallback_P5_MWh,fallback_P50_MWh,fallback_P95_MWh,met_P5_pct,met_P50_pct,met_P95_pct
+solar,ngboost,134305.72,134951.26,135734.63,0.4,0.4,0.41
+solar,tabpfn,123251.2,125074.81,126525.39,0.44,0.45,0.46
+wind,ngboost,214794.3,215041.34,215244.18,0.05,0.05,0.05
+wind,tabpfn,218060.86,218106.55,218182.28,0.04,0.04,0.04
