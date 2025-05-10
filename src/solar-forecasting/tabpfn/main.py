@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
-import os, sys, warnings
+import os
+import sys
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -16,7 +17,7 @@ warnings.filterwarnings("ignore")
 LATITUDE        = 32.7
 LONGITUDE       = -114.63
 MODEL_RESULTS   = "../../../model_results/solar"
-CV_YEARS        = list(range(2018, 2023))
+CV_YEARS        = list(range(2018, 2023))  # train on 2018–2022
 TEST_YEAR       = 2023
 HOURS_PER_YEAR  = 24 * 365
 
@@ -26,7 +27,81 @@ PERF_RATIO      = 0.8
 TEMP_COEFF      = 0.004
 T_REF           = 25.0
 
-# … your load_solar_data, build_climatology, prepare_features here …
+# === Load Data & Climatology ===
+def load_solar_data(base_dir="../solar_data", years=range(2018, 2024)):
+    parts = []
+    for yr in years:
+        f = Path(base_dir) / f"solar_{yr}.csv"
+        if not f.exists():
+            sys.exit(f"Missing file: {f}")
+        # read header so Year...Minute columns are present
+        df = pd.read_csv(f, header=2)
+        # build datetime index
+        df['datetime'] = pd.to_datetime(df[['Year','Month','Day','Hour','Minute']])
+        df = df.drop(columns=['Year','Month','Day','Hour','Minute'])
+        # cast and drop missing
+        df = (
+            df.set_index('datetime')
+              .astype({
+                'GHI': float,
+                'Temperature': float,
+                'DHI': float,
+                'DNI': float,
+                'Relative Humidity': float,
+                'Dew Point': float,
+                'Cloud Type': int
+              })
+              .sort_index()
+              .dropna(subset=['GHI'])
+        )
+        parts.append(df)
+    return pd.concat(parts)
+
+
+def build_climatology(df):
+    hist = df[df.index.year.isin(CV_YEARS)]
+    return hist['GHI'].groupby([hist.index.month, hist.index.hour]).mean()
+
+# === Feature Engineering ===
+def prepare_features(df, clim):
+    df = df.copy()
+    # residual target
+    mon, hr = df.index.month, df.index.hour
+    df['GHI_clim'] = clim.loc[list(zip(mon, hr))].values
+    df['resid']    = df['GHI'] - df['GHI_clim']
+    # time features
+    hours = hr
+    df['sin_h']   = np.sin(2*np.pi * hours/24)
+    df['cos_h']   = np.cos(2*np.pi * hours/24)
+    doy = df.index.dayofyear
+    df['sin_doy'] = np.sin(2*np.pi * doy/365)
+    df['cos_doy'] = np.cos(2*np.pi * doy/365)
+    # temperature derate
+    df['temp_diff'] = df['Temperature'] - T_REF
+    df['eff_temp']  = 1 - TEMP_COEFF * df['temp_diff']
+    # ordinal cloud type
+    df['cloud_type'] = df['Cloud Type'].astype(int)
+    # lags & rolling stats
+    lags = [1,3,6,24,168]
+    for var in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']:
+        for lag in lags:
+            df[f'{var}_lag{lag}'] = df[var].shift(lag)
+        df[f'{var}_roll24_mean'] = df[var].rolling(24).mean().shift(1)
+        df[f'{var}_roll24_std']  = df[var].rolling(24).std().shift(1)
+    # drop rows with missing
+    feat_cols = [
+        'sin_h','cos_h','sin_doy','cos_doy',
+        'temp_diff','eff_temp','cloud_type'
+    ] + [f'{v}_lag{lag}' for v in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point'] for lag in lags] + \
+      [f'{v}_roll24_mean' for v in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']] + \
+      [f'{v}_roll24_std'  for v in ['GHI','DHI','DNI','Temperature','Relative Humidity','Dew Point']]
+    df = df.dropna(subset=feat_cols + ['resid'])
+    X = df[feat_cols]
+    y = df['resid']
+    clim_vals = df['GHI_clim'].values
+    return X, y, clim_vals
+
+# === Main ===
 
 def main():
     os.makedirs(MODEL_RESULTS, exist_ok=True)
