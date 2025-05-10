@@ -54,7 +54,7 @@ def evaluate_solar():
     plt.legend(ncol=2)
     plt.grid(ls=":", lw=0.5, alpha=0.7)
     plt.tight_layout()
-    plt.savefig("model_results/visualizations/solar/solar_jan1-7_timeseries.png", dpi=300)
+    plt.savefig("../../model_results/visualizations/solar/solar_jan1-7_timeseries.png", dpi=300)
     plt.close()
     print("Saved detailed hourly plot for Jan 1–7 to solar_jan1-7_timeseries.png")
 
