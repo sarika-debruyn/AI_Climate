@@ -1,4 +1,6 @@
-# --- solar_perfect_baseline.py ---
+# File: src/solar-forecasting/baseline_model/perfect.py
+#!/usr/bin/env python3
+
 from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).resolve().parents[2]))   # add …/src
