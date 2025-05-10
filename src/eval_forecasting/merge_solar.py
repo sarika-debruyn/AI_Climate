@@ -1,10 +1,15 @@
+# -- bootstrapping: add REPO/src to sys.path -----------------------------
+from shared.path_utils import add_src_to_path
+add_src_to_path(2)  # Adjust if needed
+# -----------------------------------------------------------------------
+
 # solar_merge_forecasts.py
 import pandas as pd
 
 def merge_solar_forecasts():
     # Load true solar power (perfect baseline) as ground truth
     df_true = pd.read_csv(
-        "../../model_results/solar/solar_perfect_2023_forecast.csv",
+        "../../model_results/solar/outputs/solar_perfect_2023_forecast.csv",
         dtype={'datetime': str}
     )
     
@@ -21,7 +26,7 @@ def merge_solar_forecasts():
 
     # Climatology
     df_clim = pd.read_csv(
-        "../../model_results/solar/solar_climatology_2023_forecast.csv",
+        "../../model_results/solar/outputs/solar_climatology_2023_forecast.csv",
         dtype={'datetime': str}
     )
     
@@ -38,7 +43,7 @@ def merge_solar_forecasts():
 
     # NGBoost
     df_ng = pd.read_csv(
-        "../../model_results/solar/solar_ngboost_holdout_forecast.csv",
+        "../../model_results/solar/outputs/solar_ngboost_holdout_forecast.csv",
         dtype={'datetime': str}
     )
     
@@ -55,7 +60,7 @@ def merge_solar_forecasts():
 
     # TabPFN (convert kW to MW if needed)
     df_tpf = pd.read_csv(
-        "../../model_results/solar/solar_tabpfn_holdout_forecast.csv",
+        "../../model_results/solar/outputs/solar_tabpfn_holdout_forecast.csv",
         dtype={'datetime': str}
     )
     
@@ -76,8 +81,8 @@ def merge_solar_forecasts():
 
     # Merge all forecasts
     df_merged = df_true.to_frame().join([df_clim.to_frame(), df_ng.to_frame(), df_tpf], how="inner")
-    df_merged.to_csv("../../model_results/solar/solar_merged_forecasts.csv")
-    print("Saved merged solar forecasts to ../../model_results/solar/solar_merged_forecasts.csv")
+    df_merged.to_csv("../../model_results/solar/outputs/solar_merged_forecasts.csv")
+    print("Saved merged solar forecasts to ../../model_results/solar/outputs/solar_merged_forecasts.csv")
 
 if __name__ == '__main__':
     merge_solar_forecasts()
