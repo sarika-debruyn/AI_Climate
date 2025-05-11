@@ -3,8 +3,7 @@
 Plot hold-out RMSE and coefficient of variation for solar vs. wind with values on top of the bars.
 
 Saves:
-  – model_results/rmse/holdout_rmse_bar_chart.png
-  – model_results/rmse/holdout_rmse_cv_bar_chart.png
+  – model_results/rmse/holdout_rmse_combined.png
 """
 
 from pathlib import Path
@@ -58,22 +57,24 @@ def add_value_labels(ax):
                     (p.get_x() + p.get_width() / 2., p.get_height()), 
                     ha='center', va='bottom', fontsize=10, color='black')
 
-# 4) Plot RMSE
-plt.figure(figsize=(8, 6))
-ax1 = rmse_df.plot(kind="bar", rot=0)
-add_value_labels(ax1)
-plt.title("Hold-out RMSE (MW)")
-plt.ylabel("RMSE (MW)")
-plt.tight_layout()
-plt.savefig(REPO_ROOT / "model_results" / "rmse" / "holdout_rmse_bar_chart.png")
-plt.close()
+# ─── Main Script ──────────────────────────────────────────────────────
+if __name__ == '__main__':
+    # 3) Create combined figure
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    
+    # Plot RMSE
+    rmse_df.plot(kind="bar", rot=0, ax=ax1)
+    add_value_labels(ax1)
+    ax1.set_title("Hold-out RMSE (MW)")
+    ax1.set_ylabel("RMSE (MW)")
 
-# 5) Plot CV
-plt.figure(figsize=(8, 6))
-ax2 = cv_df.plot(kind="bar", rot=0)
-add_value_labels(ax2)
-plt.title("Hold-out RMSE Coefficient of Variation (%)")
-plt.ylabel("CV (%)")
-plt.tight_layout()
-plt.savefig(REPO_ROOT / "model_results" / "rmse" / "holdout_rmse_cv_bar_chart.png")
-plt.close()
+    # Plot CV
+    cv_df.plot(kind="bar", rot=0, ax=ax2)
+    add_value_labels(ax2)
+    ax2.set_title("Hold-out RMSE Coefficient of Variation (%)")
+    ax2.set_ylabel("CV (%)")
+
+    # Finalize and save
+    plt.tight_layout()
+    plt.savefig(REPO_ROOT / "model_results" / "rmse" / "holdout_rmse_combined.png")
+    plt.close()
