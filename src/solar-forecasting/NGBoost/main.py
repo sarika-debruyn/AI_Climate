@@ -202,19 +202,20 @@ def main():
     
     # Save individual model results
     results = {"NGBoost": pd.DataFrame({"datetime": X_te.index, "power_pred_MW": p_pred_MW})}
+    
+    # Save individual model results
     for model_name, forecasts in results.items():
         out_path = output_dir / f"{model_name}_forecasts.csv"
-        forecasts.to_csv(out_path)
+        forecasts.to_csv(out_path, index=False)
         print(f"Saved {model_name} forecasts to {out_path}")
     
-    # Merge all forecasts
-    merged_forecasts = pd.concat(results.values(), axis=1)
-    merged_forecasts.columns = results.keys()
+    # Merge all forecasts (just use the first forecast since there's only one model)
+    merged_forecasts = results["NGBoost"].copy()
     
     # Save merged forecasts
     merged_path = output_dir / "solar_merged_forecasts.csv"
-    merged_forecasts.to_csv(merged_path)
-    print(f"Saved merged forecasts to {merged_path}")
+    merged_forecasts.to_csv(merged_path, index=False)
+    print(f"Saved forecasts to {merged_path}")
 
     print(" NGBoost residual pipeline complete. Outputs saved to model_results/solar/outputs/")
 

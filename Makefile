@@ -89,10 +89,7 @@ dispatch:
 	$(PYTHON) src/grid_simul/dispatch.py
 
 # Grid Simulation
-grid_simul: grid_utils rmse_vs_fallback solar_cost wind_cost combined_cost
-
-rmse_vs_fallback:
-	$(PYTHON) src/grid_simul/rmse_vs_fallback.py
+grid_simul: grid_utils solar_cost wind_cost combined_cost
 
 solar_cost:
 	$(PYTHON) src/grid_simul/solar_cost_distribution.py

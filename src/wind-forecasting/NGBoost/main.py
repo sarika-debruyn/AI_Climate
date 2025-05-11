@@ -162,19 +162,20 @@ def main():
     
     # Save individual model results
     results = {"NGBoost": pd.DataFrame({"datetime": X_test.index, "power_pred_MW": df_out['power_pred_MW']})}
+    
+    # Save individual model results
     for model_name, forecasts in results.items():
         out_path = output_dir / f"{model_name}_forecasts.csv"
-        forecasts.to_csv(out_path)
+        forecasts.to_csv(out_path, index=False)
         print(f"Saved {model_name} forecasts to {out_path}")
     
-    # Merge all forecasts
-    merged_forecasts = pd.concat(results.values(), axis=1)
-    merged_forecasts.columns = results.keys()
+    # Just use the first forecast since there's only one model
+    merged_forecasts = results["NGBoost"].copy()
     
     # Save merged forecasts
     merged_path = output_dir / "wind_merged_forecasts.csv"
-    merged_forecasts.to_csv(merged_path)
-    print(f"Saved merged forecasts to {merged_path}")
+    merged_forecasts.to_csv(merged_path, index=False)
+    print(f"Saved forecasts to {merged_path}")
 
 if __name__ == "__main__":
     main()
