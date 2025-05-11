@@ -1,5 +1,5 @@
 {
-  "n_estimators": 351,
-  "learning_rate": 0.021903989723421113,
-  "minibatch_frac": 0.7810014113922062
+  "n_estimators": 244,
+  "learning_rate": 0.062506806423074,
+  "minibatch_frac": 0.7894108220503071
 }
