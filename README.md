@@ -1,4 +1,4 @@
-# AI for Climate: Solar and Wind Forecasting
+# AI for Climate: Solar and Wind Forecasting using ML Models for Data Centers
 
 This project focuses on developing machine learning models (TabPFN and NGBoost) for solar and wind power forecasting for data-centers, with applications in grid management and renewable energy optimization.
 
