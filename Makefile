@@ -1,11 +1,37 @@
 # Project Makefile
-.PHONY: all clean solar_forecast wind_forecast grid_simul grid_utils baseline_models
+.PHONY: all clean install install-dev test lint format solar_forecast wind_forecast grid_simul grid_utils baseline_models
 
 PYTHON = python3
 COLAB_PYTHON = python3  # Change this to your Colab Python path if needed
+PIP = pip
 
 # Main targets
 all: baseline_models solar_forecast wind_forecast grid_simul grid_utils
+
+# Dependency Management
+install:
+	@echo "Installing project dependencies..."
+	$(PIP) install -r requirements.txt
+
+install-dev:
+	@echo "Installing development dependencies..."
+	$(PIP) install -r requirements.txt
+	$(PIP) install black isort flake8 mypy pytest pytest-cov
+
+# Development
+format:
+	@echo "Formatting code..."
+	black src/
+	isort src/
+
+lint:
+	@echo "Linting code..."
+	flake8 src/
+	mypy src/
+
+test:
+	@echo "Running tests..."
+	pytest tests/ -v --cov=src --cov-report=term-missing
 
 # Baseline Models
 baseline_models: solar_baselines wind_baselines
@@ -15,10 +41,6 @@ solar_baselines: solar_climatology solar_perfect
 wind_baselines: wind_climatology wind_perfect
 
 # Solar Forecasting
-clean:
-	find . -name "*.pyc" -delete
-	find . -name "__pycache__" -delete
-
 solar_forecast: solar_ngboost solar_tabpfn
 
 solar_climatology:
@@ -102,6 +124,11 @@ combined_cost:
 
 # Clean up
 clean:
+	@echo "Cleaning up..."
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -delete
 	find . -name "*.csv" -not -path "./model_results/*" -delete
+	find . -name ".pytest_cache" -exec rm -rf {} +
+	find . -name ".mypy_cache" -exec rm -rf {} +
+	find . -name ".coverage" -delete
+	find . -name "htmlcov" -exec rm -rf {} +
