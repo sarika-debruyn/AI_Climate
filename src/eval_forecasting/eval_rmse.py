@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plot hold-out RMSE and coefficient of variation for solar vs. wind.
+Plot hold-out RMSE and coefficient of variation for solar vs. wind with values on top of the bars.
 
 Saves:
   – model_results/rmse/holdout_rmse_bar_chart.png
@@ -50,9 +50,18 @@ cv_df = rmse_df.copy()
 for d in domains:
     cv_df[d] = 100 * cv_df[d] / mean_power[d]
 
+# ─── Function to Add Value Labels ─────────────────────────────────────
+def add_value_labels(ax):
+    """Add value labels on top of each bar."""
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height():.2f}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    ha='center', va='bottom', fontsize=10, color='black')
+
 # 4) Plot RMSE
 plt.figure(figsize=(8, 6))
-rmse_df.plot(kind="bar", rot=0)
+ax1 = rmse_df.plot(kind="bar", rot=0)
+add_value_labels(ax1)
 plt.title("Hold-out RMSE (MW)")
 plt.ylabel("RMSE (MW)")
 plt.tight_layout()
@@ -61,7 +70,8 @@ plt.close()
 
 # 5) Plot CV
 plt.figure(figsize=(8, 6))
-cv_df.plot(kind="bar", rot=0)
+ax2 = cv_df.plot(kind="bar", rot=0)
+add_value_labels(ax2)
 plt.title("Hold-out RMSE Coefficient of Variation (%)")
 plt.ylabel("CV (%)")
 plt.tight_layout()
