@@ -34,9 +34,11 @@ width     = 0.35
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
+# Improved Bar Plot with Data Labels
+
 # ── Panel 1: Grid fallback ────────────────────────────────────
 for i, res in enumerate(resources):
-    # 1) Climatology baseline (no MC uncertainty)
+    # Climatology baseline (no MC uncertainty)
     fc_clim = pd.read_csv(
         MODEL_ROOT / res / "outputs" / f"{res}_merged_forecasts.csv",
         parse_dates=["datetime"], index_col="datetime"
@@ -46,29 +48,38 @@ for i, res in enumerate(resources):
         clim_met["grid_fallback_MWh"], 0.0, 0.0
     )
 
-    # 2) ML model summaries from your sim_uncertainty output
+    # ML model summaries from your sim_uncertainty output
     sub = summary_df[summary_df.resource == res]
-    ml_med   = [sub[sub.model == m]["fallback_P50_MWh"].item() for m in ml_models]
-    ml_low   = [sub[sub.model == m]["fallback_P50_MWh"].item() - sub[sub.model == m]["fallback_P5_MWh"].item() for m in ml_models]
-    ml_high  = [sub[sub.model == m]["fallback_P95_MWh"].item() - sub[sub.model == m]["fallback_P50_MWh"].item() for m in ml_models]
+    ml_med = [sub[sub.model == m]["fallback_P50_MWh"].item() for m in ml_models]
+    ml_low = [sub[sub.model == m]["fallback_P50_MWh"].item() - sub[sub.model == m]["fallback_P5_MWh"].item() for m in ml_models]
+    ml_high = [sub[sub.model == m]["fallback_P95_MWh"].item() - sub[sub.model == m]["fallback_P50_MWh"].item() for m in ml_models]
 
-    meds  = [clim_med] + ml_med
-    lows  = [clim_low] + ml_low
+    meds = [clim_med] + ml_med
+    lows = [clim_low] + ml_low
     highs = [clim_high] + ml_high
 
     pos = x + (i - 0.5) * width
-    ax1.bar(pos, meds, width, label=res, alpha=0.7)
+    bars = ax1.bar(pos, meds, width, label=res, alpha=0.7)
     ax1.errorbar(pos, meds, yerr=[lows, highs], fmt="none", capsize=4)
+
+    # Add data labels on top of each bar
+    for bar, med in zip(bars, meds):
+        height = bar.get_height()
+        ax1.annotate(f'{med:.2f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
 
 ax1.set_xticks(x)
 ax1.set_xticklabels(models)
 ax1.set_ylabel("Grid fallback (MWh)")
-ax1.set_title("Grid fallback, median ± P5–P95 (incl. climatology)")
+ax1.set_title("Grid fallback, median ± P5–P95 (based on summary statistics)")
 ax1.legend()
 
 # ── Panel 2: % Demand met ────────────────────────────────────
 for i, res in enumerate(resources):
-    # 1) Climatology baseline
+    # Climatology baseline
     fc_clim = pd.read_csv(
         MODEL_ROOT / res / "outputs" / f"{res}_merged_forecasts.csv",
         parse_dates=["datetime"], index_col="datetime"
@@ -78,27 +89,36 @@ for i, res in enumerate(resources):
         clim_met["percent_demand_met"], 0.0, 0.0
     )
 
-    # 2) ML summaries
+    # ML summaries
     sub = summary_df[summary_df.resource == res]
-    ml_med   = [sub[sub.model == m]["met_P50_pct"].item() for m in ml_models]
-    ml_low   = [sub[sub.model == m]["met_P50_pct"].item() - sub[sub.model == m]["met_P5_pct"].item() for m in ml_models]
-    ml_high  = [sub[sub.model == m]["met_P95_pct"].item() - sub[sub.model == m]["met_P50_pct"].item() for m in ml_models]
+    ml_med = [sub[sub.model == m]["met_P50_pct"].item() for m in ml_models]
+    ml_low = [sub[sub.model == m]["met_P50_pct"].item() - sub[sub.model == m]["met_P5_pct"].item() for m in ml_models]
+    ml_high = [sub[sub.model == m]["met_P95_pct"].item() - sub[sub.model == m]["met_P50_pct"].item() for m in ml_models]
 
-    meds  = [clim_med] + ml_med
-    lows  = [clim_low] + ml_low
+    meds = [clim_med] + ml_med
+    lows = [clim_low] + ml_low
     highs = [clim_high] + ml_high
 
     pos = x + (i - 0.5) * width
-    ax2.bar(pos, meds, width, label=res, alpha=0.7)
+    bars = ax2.bar(pos, meds, width, label=res, alpha=0.7)
     ax2.errorbar(pos, meds, yerr=[lows, highs], fmt="none", capsize=4)
+
+    # Add data labels on top of each bar
+    for bar, med in zip(bars, meds):
+        height = bar.get_height()
+        ax2.annotate(f'{med:.2%}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
 
 ax2.set_xticks(x)
 ax2.set_xticklabels(models)
 ax2.set_ylabel("% Demand met")
-ax2.set_title("% Demand met, median ± P5–P95 (incl. climatology)")
+ax2.set_title("% Demand met, median ± P5–P95 (based on summary statistics)")
 ax2.legend()
 
 fig.tight_layout()
 fig.savefig(OUTPUT_PNG)
 plt.close(fig)
-print(f"Saved grid visual to {OUTPUT_PNG}")
+print(f"Saved enhanced grid visual with data labels to {OUTPUT_PNG}")
